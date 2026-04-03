@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { guardarObra, cargarObra } from "./firebase";
+import { guardarObra, escucharObra } from "./firebase";
 
 const ETAPAS_DEFAULT = [
   { id: "replanteo", nombre: "1. Replanteo y Trazado", items: [
@@ -211,18 +211,16 @@ export default function App() {
   const fileRef = useRef();
   const saveTimer = useRef();
 
-  // Cargar desde Firebase al inicio
+  // Escuchar cambios en tiempo real desde Firebase
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await cargarObra();
-        if (data?.etapas) setEtapas(data.etapas);
-        if (data?.obraInfo) setObraInfo(data.obraInfo);
-        setCloudStatus("✅ Sincronizado");
-      } catch { setCloudStatus("✅ Listo"); }
+    const unsub = escucharObra((data) => {
+      if (data?.etapas) setEtapas(data.etapas);
+      if (data?.obraInfo) setObraInfo(data.obraInfo);
+      setCloudStatus("✅ Sincronizado");
       setLoaded(true);
-    }
-    load();
+    });
+    setTimeout(() => setLoaded(true), 3000); // fallback si no hay datos aún
+    return () => unsub(); // limpia el listener al cerrar
   }, []);
 
   // Guardar en Firebase con debounce

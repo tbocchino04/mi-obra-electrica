@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDQRAYhSKcSycA-Q9zxPuenS3bpzIJc9_w",
@@ -19,8 +19,10 @@ export async function guardarObra(data) {
   await setDoc(doc(db, "obras", "principal"), data);
 }
 
-// Cargar datos de la obra
-export async function cargarObra() {
-  const snap = await getDoc(doc(db, "obras", "principal"));
-  return snap.exists() ? snap.data() : null;
+// Escuchar cambios en tiempo real
+// "callback" es una función que se llama cada vez que hay un cambio
+export function escucharObra(callback) {
+  return onSnapshot(doc(db, "obras", "principal"), (snap) => {
+    if (snap.exists()) callback(snap.data());
+  });
 }
