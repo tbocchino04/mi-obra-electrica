@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, getDocs } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDQRAYhSKcSycA-Q9zxPuenS3bpzIJc9_w",
@@ -14,15 +14,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
-// Guardar datos de la obra
-export async function guardarObra(data) {
-  await setDoc(doc(db, "obras", "principal"), data);
+// Guardar una obra
+export async function guardarObra(obraId, data) {
+  await setDoc(doc(db, "obras", obraId), data);
 }
 
-// Escuchar cambios en tiempo real
-// "callback" es una función que se llama cada vez que hay un cambio
-export function escucharObra(callback) {
-  return onSnapshot(doc(db, "obras", "principal"), (snap) => {
+// Escuchar una obra en tiempo real
+export function escucharObra(obraId, callback) {
+  return onSnapshot(doc(db, "obras", obraId), snap => {
     if (snap.exists()) callback(snap.data());
   });
+}
+
+// Escuchar lista de obras en tiempo real
+export function escucharObras(callback) {
+  return onSnapshot(collection(db, "obras"), snap => {
+    const obras = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    callback(obras);
+  });
+}
+
+// Crear obra nueva
+export async function crearObra(data) {
+  return await addDoc(collection(db, "obras"), data);
+}
+
+// Eliminar obra
+export async function eliminarObra(obraId) {
+  await deleteDoc(doc(db, "obras", obraId));
 }
