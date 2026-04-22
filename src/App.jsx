@@ -1135,9 +1135,12 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSideba
       obraInfo: {
         nombre: nombre.trim(), cliente: cliente.trim(), direccion: direccion.trim(),
         clienteEmail: clienteEmail.trim(), adminEmail: adminEmail.trim(),
-        tipo, rubro,
+        tipo, rubro, rubros: [rubro],
       },
-      etapas: TEMPLATES[rubro] || ETAPAS_DEFAULT,
+      etapas: (TEMPLATES[rubro] || ETAPAS_DEFAULT).map((e, ei) => ({
+        ...e, rubro,
+        items: e.items.map(i => ({ ...i, estado: "pendiente", comentario: "", foto: null })),
+      })),
     });
     setNombre(""); setCliente(""); setDireccion(""); setClienteEmail(""); setAdminEmail("");
     setTipo("casa"); setRubro("electrica");
@@ -1461,6 +1464,8 @@ export default function App() {
   const [copied,        setCopied]        = useState(false);
   const [copiedSocio,   setCopiedSocio]   = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
+  const [rubroActivo,   setRubroActivo]   = useState(null);
+  const [modalRubro,    setModalRubro]    = useState(false);
   const fileRef   = useRef();
   const saveTimer = useRef();
   const unsubRef  = useRef();
@@ -1522,10 +1527,20 @@ export default function App() {
   const canEdit  = true;
   const canAdmin = true;
 
-  const totalItems  = etapas.flatMap(e => e.items).length;
-  const completados = etapas.flatMap(e => e.items).filter(i => i.estado === "completado").length;
+  const totalItems  = etapas.flatMap(e => e.items || []).length;
+  const completados = etapas.flatMap(e => e.items || []).filter(i => i.estado === "completado").length;
   const pct         = totalItems ? Math.round(completados / totalItems * 100) : 0;
   const pColor      = progressStroke(pct);
+
+  const rubrosActivos = obraInfo.rubros?.length
+    ? obraInfo.rubros
+    : (obraInfo.rubro ? [obraInfo.rubro] : []);
+
+  function getRubroDeEtapa(e) { return e.rubro || obraInfo.rubro || null; }
+
+  const etapasFiltradas = rubroActivo === null
+    ? etapas
+    : etapas.filter(e => getRubroDeEtapa(e) === rubroActivo);
 
   function updateItem(etapaId, itemId, changes) {
     setEtapas(prev => prev.map(e => e.id !== etapaId ? e : {
@@ -1594,6 +1609,31 @@ export default function App() {
   function deleteItem(etapaId, itemId) {
     setEtapas(prev => prev.map(e => e.id !== etapaId ? e : { ...e, items: e.items.filter(i => i.id !== itemId) }));
     setModalItem(null);
+  }
+
+  function addRubro(rubroId) {
+    const nuevos = [...new Set([...rubrosActivos, rubroId])];
+    setObraInfo(prev => ({ ...prev, rubros: nuevos }));
+    if (TEMPLATES[rubroId]) {
+      const ts = Date.now();
+      const nuevasEtapas = TEMPLATES[rubroId].map((e, ei) => ({
+        ...e,
+        id: `${rubroId}_${ts}_${ei}`,
+        rubro: rubroId,
+        monto: "", moneda: "ARS", firma: null,
+        items: e.items.map((i, ii) => ({
+          ...i, id: `${rubroId}_${ts}_${ei}_${ii}`,
+          estado: "pendiente", comentario: "", foto: null,
+        })),
+      }));
+      setEtapas(prev => [...prev, ...nuevasEtapas]);
+    }
+  }
+
+  function removeRubro(rubroId) {
+    setObraInfo(prev => ({ ...prev, rubros: (prev.rubros || []).filter(r => r !== rubroId) }));
+    setEtapas(prev => prev.filter(e => (e.rubro || obraInfo.rubro) !== rubroId));
+    if (rubroActivo === rubroId) setRubroActivo(null);
   }
 
   function handleFoto(e, etapaId, itemId) {
@@ -1719,11 +1759,86 @@ export default function App() {
           </div>
         </div>
 
+        {rubrosActivos.length > 1 && (
+          <div className="mt-4 pt-4 border-t border-ink-100 dark:border-ink-800">
+            <Label>Por rubro</Label>
+            <div className="mt-2.5 flex flex-col gap-3">
+              {rubrosActivos.map(rid => {
+                const lbl = RUBROS.find(r => r.id === rid)?.label || rid;
+                const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+                const cp  = its.filter(i => i.estado === "completado").length;
+                const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+                return (
+                  <button key={rid} onClick={() => setRubroActivo(rubroActivo === rid ? null : rid)}
+                    className="text-left cursor-pointer bg-transparent border-0 p-0">
+                    <div className="flex justify-between items-baseline mb-1">
+                      <span className={`text-[11px] font-semibold ${rubroActivo === rid ? "text-violet-600 dark:text-violet-400" : "text-ink-500 dark:text-ink-400"}`}>{lbl}</span>
+                      <span className={`text-[12px] font-bold ${progressColor(rp)}`}>{rp}%</span>
+                    </div>
+                    <div className="h-0.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${rp}%`, background: progressStroke(rp) }} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
 
-      {/* Etapas */}
-      <div className="px-3.5 pt-3.5 md:flex-1 md:min-w-0 md:overflow-y-auto md:px-6 md:pt-5">
-        {etapas.map(etapa => {
+      {/* Columna derecha: tabs + etapas */}
+      <div className="md:flex-1 md:min-w-0 md:overflow-y-auto">
+
+        {/* Tab bar rubros */}
+        {rubrosActivos.length > 0 && (
+          <div className="px-3.5 md:px-6 pt-3.5 md:pt-5 pb-1">
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+              <button onClick={() => setRubroActivo(null)}
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-semibold border cursor-pointer transition-colors ${
+                  rubroActivo === null
+                    ? "bg-ink dark:bg-ink-50 text-white dark:text-ink border-transparent"
+                    : "bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-400 border-ink-200 dark:border-ink-700 hover:border-ink-400"
+                }`}>
+                General
+              </button>
+              {rubrosActivos.map(rid => {
+                const lbl = RUBROS.find(r => r.id === rid)?.label || rid;
+                const active = rubroActivo === rid;
+                return (
+                  <div key={rid} className="flex-shrink-0 flex">
+                    <button onClick={() => setRubroActivo(rid)}
+                      className={`px-3.5 py-1.5 rounded-l-full text-[12px] font-semibold border-y border-l cursor-pointer transition-colors ${
+                        active
+                          ? "bg-violet-600 text-white border-violet-600"
+                          : "bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-400 border-ink-200 dark:border-ink-700 hover:border-violet-400"
+                      }`}>
+                      {lbl}
+                    </button>
+                    <button onClick={() => removeRubro(rid)} title="Eliminar rubro"
+                      className={`px-2 py-1.5 rounded-r-full text-[11px] border-y border-r cursor-pointer transition-colors ${
+                        active
+                          ? "bg-violet-600 text-violet-200 border-violet-600 hover:bg-violet-700"
+                          : "bg-white dark:bg-ink-800 text-ink-300 dark:text-ink-600 border-ink-200 dark:border-ink-700 hover:text-red-400 hover:border-red-300"
+                      }`}>
+                      <X size={10} />
+                    </button>
+                  </div>
+                );
+              })}
+              {rubrosActivos.length < RUBROS.length && (
+                <button onClick={() => setModalRubro(true)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold border border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center gap-1">
+                  <Plus size={11} /> Rubro
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Etapas */}
+        <div className="px-3.5 pt-3 md:px-6 md:pt-4">
+        {etapasFiltradas.map(etapa => {
           const open = !!expandidas[etapa.id];
           const ep   = pctEtapa(etapa);
           const mf   = fmtMonto(etapa);
@@ -1836,7 +1951,42 @@ export default function App() {
             </div>
           );
         })}
-      </div>
+        </div>{/* /etapas inner */}
+      </div>{/* /columna derecha */}
+
+      {/* Modal agregar rubro */}
+      {modalRubro && (
+        <div className="fixed inset-0 bg-ink/60 flex items-end md:items-center md:justify-center z-[100]"
+          onClick={e => { if (e.target === e.currentTarget) setModalRubro(false); }}>
+          <div className="bg-white dark:bg-ink-900 rounded-t-3xl md:rounded-3xl px-5 pt-5 pb-11 md:pb-6 w-full md:max-w-sm border border-ink-200 dark:border-ink-700 border-b-0 md:border animate-[slideUp_.22s_ease-out_both]">
+            <SheetHandle />
+            <div className="flex justify-between items-center mb-5">
+              <div className="font-bold text-base text-ink dark:text-ink-50">Agregar rubro</div>
+              <button onClick={() => setModalRubro(false)}
+                className="bg-ink-50 dark:bg-ink-800 border-0 rounded-full w-8 h-8 cursor-pointer text-ink-400 flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              {RUBROS.filter(r => !rubrosActivos.includes(r.id)).map(r => (
+                <button key={r.id}
+                  onClick={() => { addRubro(r.id); setModalRubro(false); setRubroActivo(r.id); }}
+                  className="w-full text-left px-4 py-3.5 rounded-xl border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-800 cursor-pointer hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-colors">
+                  <div className="font-semibold text-sm text-ink dark:text-ink-50">{r.label}</div>
+                  <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                    {TEMPLATES[r.id]?.length || 0} etapas predefinidas · se cargan automáticamente
+                  </div>
+                </button>
+              ))}
+              {RUBROS.every(r => rubrosActivos.includes(r.id)) && (
+                <div className="text-center py-6 text-sm text-ink-400 dark:text-ink-500">
+                  Todos los rubros ya están agregados.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal ítem */}
       {modalItem && (
