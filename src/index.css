@@ -10,19 +10,16 @@
     text-rendering: optimizeLegibility;
   }
   *, *::before, *::after { box-sizing: border-box; }
-  body { margin: 0; }
+  html, body { margin: 0; width: 100%; }
   #root {
     width: 100%;
-    max-width: 480px;
-    margin: 0 auto;
     min-height: 100dvh;
   }
-}
-
-@media (min-width: 768px) {
-  #root {
-    max-width: 100%;
-    margin: 0;
+  @media (max-width: 767px) {
+    #root {
+      max-width: 480px;
+      margin: 0 auto;
+    }
   }
 }
 

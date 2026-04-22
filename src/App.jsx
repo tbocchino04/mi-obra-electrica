@@ -1077,6 +1077,7 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSideba
 // ── Vista Cliente ──────────────────────────────────────────────────
 function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = null }) {
   const [modalFirma, setModalFirma] = useState(null);
+  const { dark, toggle: toggleDark } = useTheme();
   const total  = etapas.flatMap(e => e.items).length;
   const comp   = etapas.flatMap(e => e.items).filter(i => i.estado === "completado").length;
   const pct    = total ? Math.round(comp / total * 100) : 0;
@@ -1085,11 +1086,18 @@ function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = 
   return (
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink">
       <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 md:px-8 pt-6 pb-5">
-        {!esPublica && (
-          <button onClick={onVolver}
-            className="bg-transparent border-0 text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center gap-1.5 mb-5 p-0">
-            <ArrowLeft size={14} /> Volver
+        <div className="flex items-center justify-between mb-5">
+          {!esPublica ? (
+            <button onClick={onVolver}
+              className="bg-transparent border-0 text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center gap-1.5 p-0">
+              <ArrowLeft size={14} /> Volver
+            </button>
+          ) : <div />}
+          <button onClick={toggleDark}
+            className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors">
+            {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
+        </div>
         )}
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0 mr-4">
