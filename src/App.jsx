@@ -595,7 +595,7 @@ function VistaFinanciero({ obras, onOpenSidebar }) {
         </div>
 
         {finGlobal && (
-          <div className="mt-4 grid grid-cols-2 gap-2.5">
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2.5">
             {[finGlobal.ars && { ...finGlobal.ars, moneda: "ARS" }, finGlobal.usd && { ...finGlobal.usd, moneda: "USD" }]
               .filter(Boolean).map(({ total, cobrado, moneda }) => (
                 <div key={moneda} className="bg-ink-50 dark:bg-ink-800 rounded-2xl px-4 py-3">
@@ -611,7 +611,7 @@ function VistaFinanciero({ obras, onOpenSidebar }) {
         )}
       </div>
 
-      <div className="px-3.5 md:px-8 pt-4 md:grid md:grid-cols-2 md:gap-4 md:items-start">
+      <div className="px-3.5 md:px-8 pt-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
         {conDatos.length === 0 ? (
           <div className="text-center py-16 px-5">
             <Wallet size={44} className="text-ink-200 dark:text-ink-700 mx-auto mb-4" />
@@ -925,7 +925,7 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSideba
         </div>
       </div>
 
-      <div className="px-3.5 md:px-8 pt-4 md:grid md:grid-cols-2 md:gap-3 md:items-start">
+      <div className="px-3.5 md:px-8 pt-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
         {obras.length === 0 && (
           <div className="text-center py-16 px-5">
             <Building2 size={44} className="text-ink-200 dark:text-ink-700 mx-auto mb-4" />
