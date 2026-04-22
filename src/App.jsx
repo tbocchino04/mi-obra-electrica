@@ -535,7 +535,7 @@ function Sidebar({ open, onClose, activeView, onSetView }) {
     <>
       <div onClick={onClose}
         className={`fixed inset-0 bg-ink/60 z-[80] transition-opacity duration-300 md:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`} />
-      <div className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-ink-900 z-[90] flex flex-col border-r border-ink-200 dark:border-ink-700 transition-transform duration-300 ease-out md:static md:h-screen md:translate-x-0 md:z-auto md:flex-shrink-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+      <div className={`fixed top-0 left-0 h-screen w-64 bg-white dark:bg-ink-900 z-[90] flex flex-col border-r border-ink-200 dark:border-ink-700 transition-transform duration-300 ease-out md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="px-5 pt-10 pb-6 border-b border-ink-100 dark:border-ink-800">
           <div className="flex items-center gap-2 mb-1">
             <Zap size={14} className="text-violet-600 dark:text-violet-400" />
@@ -693,9 +693,9 @@ function HomeView({ obras, uid, userNombre, onSelectObra, onEliminar }) {
   const [sidebarOpen,  setSidebarOpen]  = useState(false);
 
   return (
-    <div className="md:flex md:min-h-screen">
+    <>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} activeView={activeView} onSetView={setActiveView} />
-      <div className="flex-1 min-w-0 overflow-auto">
+      <div className="md:ml-64 min-h-screen">
         {activeView === "obras" && (
           <ListaObras obras={obras} onSelect={onSelectObra} onEliminar={onEliminar}
             uid={uid} userNombre={userNombre} onOpenSidebar={() => setSidebarOpen(true)} />
@@ -704,7 +704,7 @@ function HomeView({ obras, uid, userNombre, onSelectObra, onEliminar }) {
           <VistaFinanciero obras={obras} onOpenSidebar={() => setSidebarOpen(true)} />
         )}
       </div>
-    </div>
+    </>
   );
 }
 
