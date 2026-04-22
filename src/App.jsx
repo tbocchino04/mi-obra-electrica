@@ -1098,7 +1098,6 @@ function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = 
             {dark ? <Sun size={14} /> : <Moon size={14} />}
           </button>
         </div>
-        )}
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-1.5 mb-1.5">
