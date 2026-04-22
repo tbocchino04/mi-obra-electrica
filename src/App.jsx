@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Zap, User, Wrench, MapPin, MessageSquare, ImageIcon,
   Camera, Trash2, Pencil, Check, ArrowLeft, Sun, Moon, Plus, X,
-  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical, FileDown, BarChart2,
+  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical, FileDown, Menu, Wallet,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
@@ -524,42 +524,190 @@ function SortableItemList({ etapaId, items, onReorder, onToggle, onEdit }) {
   );
 }
 
-// ── Bottom Navigation ──────────────────────────────────────────────
-function BottomNav({ active, onChange }) {
+// ── Sidebar deslizable ─────────────────────────────────────────────
+function Sidebar({ open, onClose, activeView, onSetView }) {
   const { dark, toggle } = useTheme();
-  const tabs = [
-    { key: "dashboard", icon: BarChart2, label: "Dashboard" },
-    { key: "obras",     icon: Building2, label: "Obras"     },
+  const nav = [
+    { key: "obras",      icon: Building2, label: "Mis Obras"  },
+    { key: "financiero", icon: Wallet,    label: "Financiero" },
   ];
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-ink-900 border-t border-ink-200 dark:border-ink-700 grid grid-cols-4 z-[60]">
-      {tabs.map(({ key, icon: Icon, label }) => (
-        <button key={key} onClick={() => onChange(key)}
-          className={`flex flex-col items-center pt-2.5 pb-4 gap-1 border-0 border-t-2 cursor-pointer transition-colors bg-transparent ${
-            active === key
-              ? "border-t-violet-600 dark:border-t-violet-400 text-violet-600 dark:text-violet-400"
-              : "border-t-transparent text-ink-400 dark:text-ink-500"
-          }`}>
-          <Icon size={19} />
-          <span className="text-[10px] font-semibold">{label}</span>
-        </button>
-      ))}
-      <button onClick={toggle}
-        className="flex flex-col items-center pt-2.5 pb-4 gap-1 border-0 border-t-2 border-t-transparent cursor-pointer text-ink-400 dark:text-ink-500 bg-transparent transition-colors">
-        {dark ? <Sun size={19} /> : <Moon size={19} />}
-        <span className="text-[10px] font-semibold">Tema</span>
-      </button>
-      <button onClick={logout}
-        className="flex flex-col items-center pt-2.5 pb-4 gap-1 border-0 border-t-2 border-t-transparent cursor-pointer text-ink-400 dark:text-ink-500 bg-transparent transition-colors">
-        <LogOut size={19} />
-        <span className="text-[10px] font-semibold">Salir</span>
-      </button>
+    <>
+      <div onClick={onClose}
+        className={`fixed inset-0 bg-ink/60 z-[80] transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`} />
+      <div className={`fixed top-0 left-0 h-full w-72 bg-white dark:bg-ink-900 z-[90] flex flex-col border-r border-ink-200 dark:border-ink-700 transition-transform duration-300 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="px-5 pt-10 pb-6 border-b border-ink-100 dark:border-ink-800">
+          <div className="flex items-center gap-2 mb-1">
+            <Zap size={14} className="text-violet-600 dark:text-violet-400" />
+            <span className="text-[11px] font-bold tracking-[0.15em] uppercase text-violet-600 dark:text-violet-400">GRUPO V&B</span>
+          </div>
+          <div className="text-[24px] font-bold text-ink dark:text-ink-50 tracking-[-0.03em]">Mi Obra</div>
+        </div>
+        <nav className="flex-1 px-3 py-4">
+          {nav.map(({ key, icon: Icon, label }) => (
+            <button key={key} onClick={() => { onSetView(key); onClose(); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl mb-1 text-sm font-semibold border-0 cursor-pointer text-left transition-colors ${
+                activeView === key
+                  ? "bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400"
+                  : "bg-transparent text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800"
+              }`}>
+              <Icon size={17} /> {label}
+            </button>
+          ))}
+        </nav>
+        <div className="px-3 pb-10 border-t border-ink-100 dark:border-ink-800 pt-4 flex flex-col gap-1">
+          <button onClick={toggle}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold border-0 cursor-pointer text-left bg-transparent text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors">
+            {dark ? <Sun size={17} /> : <Moon size={17} />}
+            {dark ? "Modo claro" : "Modo oscuro"}
+          </button>
+          <button onClick={logout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold border-0 cursor-pointer text-left bg-transparent text-ink-500 dark:text-ink-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-500 transition-colors">
+            <LogOut size={17} /> Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── Vista Financiero ───────────────────────────────────────────────
+function VistaFinanciero({ obras, onOpenSidebar }) {
+  const todasEtapas = obras.flatMap(o => o.etapas || []);
+  const finGlobal   = calcFinanciero(todasEtapas);
+  const conDatos    = obras.filter(o => (o.etapas || []).some(e => e.monto && Number(e.monto) > 0));
+
+  return (
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-8">
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 pt-7 pb-5">
+        <div className="flex items-center gap-3 mb-1">
+          <button onClick={onOpenSidebar}
+            className="bg-ink-50 dark:bg-ink-800 border-0 rounded-xl p-2 cursor-pointer text-ink-500 dark:text-ink-400 flex-shrink-0">
+            <Menu size={18} />
+          </button>
+          <div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <Zap size={12} className="text-violet-600 dark:text-violet-400" />
+              <Label>GRUPO V&B</Label>
+            </div>
+            <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Financiero</div>
+          </div>
+        </div>
+
+        {finGlobal && (
+          <div className="mt-4 grid grid-cols-2 gap-2.5">
+            {[finGlobal.ars && { ...finGlobal.ars, moneda: "ARS" }, finGlobal.usd && { ...finGlobal.usd, moneda: "USD" }]
+              .filter(Boolean).map(({ total, cobrado, moneda }) => (
+                <div key={moneda} className="bg-ink-50 dark:bg-ink-800 rounded-2xl px-4 py-3">
+                  <div className="text-[10px] font-bold tracking-wider text-ink-400 dark:text-ink-500 uppercase mb-1">{moneda} · Total</div>
+                  <div className="text-[18px] font-bold text-ink dark:text-ink-50 leading-none">{fmtNum(total, moneda)}</div>
+                  <div className="h-1 bg-ink-200 dark:bg-ink-700 rounded-full mt-2 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${total ? Math.round(cobrado / total * 100) : 0}%` }} />
+                  </div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-1">Cobrado {fmtNum(cobrado, moneda)}</div>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
+      <div className="px-3.5 pt-4 flex flex-col gap-3">
+        {conDatos.length === 0 ? (
+          <div className="text-center py-16 px-5">
+            <Wallet size={44} className="text-ink-200 dark:text-ink-700 mx-auto mb-4" />
+            <div className="font-bold text-base text-ink dark:text-ink-50 mb-1.5 tracking-tight">Sin montos registrados</div>
+            <div className="text-sm text-ink-500 dark:text-ink-400">Abrí una obra y asigná montos a cada etapa.</div>
+          </div>
+        ) : conDatos.map(obra => {
+          const finObra = calcFinanciero(obra.etapas || []);
+          const etapasConMonto = (obra.etapas || []).filter(e => e.monto && Number(e.monto) > 0);
+          return (
+            <div key={obra.id} className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+              {/* Header obra */}
+              <div className="px-4 py-4 border-b border-ink-100 dark:border-ink-800">
+                <div className="font-bold text-[15px] text-ink dark:text-ink-50 tracking-tight">{obra.obraInfo?.nombre}</div>
+                {obra.obraInfo?.cliente && (
+                  <div className="flex items-center gap-1.5 text-xs text-ink-400 dark:text-ink-500 mt-0.5">
+                    <User size={10} /> {obra.obraInfo.cliente}
+                  </div>
+                )}
+              </div>
+
+              {/* Resumen financiero de la obra */}
+              {finObra && (
+                <div className="px-4 py-3 border-b border-ink-100 dark:border-ink-800">
+                  {[finObra.ars && { ...finObra.ars, moneda: "ARS" }, finObra.usd && { ...finObra.usd, moneda: "USD" }]
+                    .filter(Boolean).map(({ total, cobrado, moneda }) => {
+                      const pend = total - cobrado;
+                      const pctC = total ? Math.round(cobrado / total * 100) : 0;
+                      return (
+                        <div key={moneda} className="mb-3 last:mb-0">
+                          <div className="flex justify-between items-baseline mb-1.5">
+                            <span className="text-[11px] text-ink-400 dark:text-ink-500">Total {moneda}</span>
+                            <span className="text-[15px] font-bold text-ink dark:text-ink-50">{fmtNum(total, moneda)}</span>
+                          </div>
+                          <div className="h-1.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden mb-1.5">
+                            <div className="h-full bg-emerald-500 rounded-full transition-[width_.5s_ease]" style={{ width: `${pctC}%` }} />
+                          </div>
+                          <div className="flex justify-between text-[11px]">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Cobrado {fmtNum(cobrado, moneda)}</span>
+                            <span className="text-ink-400 dark:text-ink-500">Pendiente {fmtNum(pend, moneda)}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+
+              {/* Detalle por etapa */}
+              {etapasConMonto.map((etapa, idx) => (
+                <div key={etapa.id} className={`flex items-center gap-3 px-4 py-3 ${idx < etapasConMonto.length - 1 ? "border-b border-ink-50 dark:border-ink-800" : ""}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold text-ink dark:text-ink-100 truncate">{etapa.nombre}</div>
+                    {etapa.firma && (
+                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        Firmado por {etapa.firma.firmante}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {etapa.firma
+                      ? <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 rounded-md px-1.5 py-0.5 flex items-center gap-1"><FileCheck size={9} /> Cobrado</span>
+                      : <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-md px-1.5 py-0.5">Pendiente</span>
+                    }
+                    <span className="text-[13px] font-bold text-ink dark:text-ink-50">{fmtMonto(etapa)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// ── Dashboard ──────────────────────────────────────────────────────
-function Dashboard({ obras, userNombre, activeView, onSetView }) {
+// ── HomeView (wrapper con sidebar) ─────────────────────────────────
+function HomeView({ obras, uid, userNombre, onSelectObra, onEliminar }) {
+  const [activeView,   setActiveView]   = useState("obras");
+  const [sidebarOpen,  setSidebarOpen]  = useState(false);
+
+  return (
+    <>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} activeView={activeView} onSetView={setActiveView} />
+      {activeView === "obras" && (
+        <ListaObras obras={obras} onSelect={onSelectObra} onEliminar={onEliminar}
+          uid={uid} userNombre={userNombre} onOpenSidebar={() => setSidebarOpen(true)} />
+      )}
+      {activeView === "financiero" && (
+        <VistaFinanciero obras={obras} onOpenSidebar={() => setSidebarOpen(true)} />
+      )}
+    </>
+  );
+}
+
+// ── Lista de Obras ─────────────────────────────────────────────────
+function _Dashboard_DELETED({ obras, userNombre, activeView, onSetView }) {
   const getObraPct = (obra) => {
     const items = (obra.etapas || []).flatMap(e => e.items || []);
     return items.length ? Math.round(items.filter(i => i.estado === "completado").length / items.length * 100) : 0;
@@ -721,14 +869,12 @@ function Dashboard({ obras, userNombre, activeView, onSetView }) {
           </div>
         )}
       </div>
-
-      <BottomNav active={activeView} onChange={onSetView} />
     </div>
   );
 }
 
 // ── Lista de Obras ─────────────────────────────────────────────────
-function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, activeView, onSetView }) {
+function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSidebar }) {
   const [nombre,       setNombre]       = useState("");
   const [cliente,      setCliente]      = useState("");
   const [direccion,    setDireccion]    = useState("");
@@ -759,16 +905,20 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, activeView, 
   }
 
   return (
-    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-28">
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24">
       <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 pt-7 pb-6">
-        <div className="flex justify-between items-start">
+        <div className="flex items-center gap-3">
+          <button onClick={onOpenSidebar}
+            className="bg-ink-50 dark:bg-ink-800 border-0 rounded-xl p-2 cursor-pointer text-ink-500 dark:text-ink-400 flex-shrink-0">
+            <Menu size={18} />
+          </button>
           <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Zap size={13} className="text-violet-600 dark:text-violet-400" />
+            <div className="flex items-center gap-1.5 mb-1">
+              <Zap size={12} className="text-violet-600 dark:text-violet-400" />
               <Label>GRUPO V&B</Label>
             </div>
-            <div className="text-[30px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Mis Obras</div>
-            <div className="text-sm text-ink-500 dark:text-ink-400 mt-1.5">{obras.length} proyecto{obras.length !== 1 ? "s" : ""} · {userNombre}</div>
+            <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Mis Obras</div>
+            <div className="text-sm text-ink-500 dark:text-ink-400 mt-1">{obras.length} proyecto{obras.length !== 1 ? "s" : ""} · {userNombre}</div>
           </div>
         </div>
       </div>
@@ -843,7 +993,7 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, activeView, 
         })}
       </div>
 
-      <div className="fixed bottom-20 right-5">
+      <div className="fixed bottom-6 right-5">
         <button onClick={() => setModal(true)}
           className="bg-ink dark:bg-white text-white dark:text-ink font-bold text-sm rounded-2xl px-5 py-3.5 flex items-center gap-2 border-0 cursor-pointer shadow-fab hover:shadow-fab-hover hover:scale-105 active:scale-[.97] transition-all duration-150">
           <Plus size={16} /> Nueva obra
@@ -918,7 +1068,6 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, activeView, 
           onConfirm={async () => { await onEliminar(confirmEl); setConfirmEl(null); }} />
       )}
 
-      <BottomNav active={activeView} onChange={onSetView} />
     </div>
   );
 }
@@ -1062,7 +1211,6 @@ export default function App() {
   const [confirmItem, setConfirmItem] = useState(null);
   const [copied,        setCopied]        = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
-  const [activeView,    setActiveView]    = useState("obras");
   const fileRef   = useRef();
   const saveTimer = useRef();
   const unsubRef  = useRef();
@@ -1192,25 +1340,14 @@ export default function App() {
     r.readAsDataURL(file);
   }
 
-  if (!obraActiva) {
-    if (activeView === "dashboard") return (
-      <Dashboard
-        obras={obras}
-        userNombre={userProfile.nombre}
-        activeView={activeView}
-        onSetView={setActiveView} />
-    );
-    return (
-      <ListaObras
-        obras={obras}
-        onSelect={o => { setObraActiva(o); setExpandidas({}); setVistaCliente(false); }}
-        onEliminar={async o => { await eliminarObra(o.id); }}
-        uid={user.uid}
-        userNombre={userProfile.nombre}
-        activeView={activeView}
-        onSetView={setActiveView} />
-    );
-  }
+  if (!obraActiva) return (
+    <HomeView
+      obras={obras}
+      uid={user.uid}
+      userNombre={userProfile.nombre}
+      onSelectObra={o => { setObraActiva(o); setExpandidas({}); setVistaCliente(false); }}
+      onEliminar={async o => { await eliminarObra(o.id); }} />
+  );
 
   if (vistaCliente) return (
     <VistaCliente etapas={etapas} obraInfo={obraInfo} onVolver={() => setVistaCliente(false)} />
