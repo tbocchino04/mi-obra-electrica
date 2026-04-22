@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Space Grotesk", "system-ui", "sans-serif"],
+        sans: ["Plus Jakarta Sans", "system-ui", "sans-serif"],
       },
       colors: {
         violet: {

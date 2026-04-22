@@ -14,11 +14,51 @@ export const TIPOS_PROYECTO = [
 
 // ── Rubros ─────────────────────────────────────────────────────────
 export const RUBROS = [
-  { id: "electrica",     label: "Instalación Eléctrica" },
-  { id: "sanitaria",     label: "Instalación Sanitaria" },
-  { id: "civil",         label: "Obra Civil" },
-  { id: "pintura",       label: "Pintura y Terminaciones" },
-  { id: "climatizacion", label: "Climatización" },
+  {
+    id: "electrica", label: "Instalación Eléctrica",
+    hex: "#f59e0b",
+    badge:   "bg-amber-50  dark:bg-amber-950/30  text-amber-600  dark:text-amber-400",
+    text:    "text-amber-600  dark:text-amber-400",
+    border:  "border-amber-400  dark:border-amber-600",
+    borderL: "border-l-amber-400",
+    dot:     "bg-amber-400",
+  },
+  {
+    id: "sanitaria", label: "Instalación Sanitaria",
+    hex: "#3b82f6",
+    badge:   "bg-blue-50   dark:bg-blue-950/30   text-blue-600   dark:text-blue-400",
+    text:    "text-blue-600   dark:text-blue-400",
+    border:  "border-blue-400   dark:border-blue-600",
+    borderL: "border-l-blue-400",
+    dot:     "bg-blue-400",
+  },
+  {
+    id: "civil", label: "Obra Civil",
+    hex: "#f97316",
+    badge:   "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400",
+    text:    "text-orange-600 dark:text-orange-400",
+    border:  "border-orange-400 dark:border-orange-600",
+    borderL: "border-l-orange-400",
+    dot:     "bg-orange-400",
+  },
+  {
+    id: "pintura", label: "Pintura y Terminaciones",
+    hex: "#ec4899",
+    badge:   "bg-pink-50   dark:bg-pink-950/30   text-pink-600   dark:text-pink-400",
+    text:    "text-pink-600   dark:text-pink-400",
+    border:  "border-pink-400   dark:border-pink-600",
+    borderL: "border-l-pink-400",
+    dot:     "bg-pink-400",
+  },
+  {
+    id: "climatizacion", label: "Climatización",
+    hex: "#06b6d4",
+    badge:   "bg-cyan-50   dark:bg-cyan-950/30   text-cyan-600   dark:text-cyan-400",
+    text:    "text-cyan-600   dark:text-cyan-400",
+    border:  "border-cyan-400   dark:border-cyan-600",
+    borderL: "border-l-cyan-400",
+    dot:     "bg-cyan-400",
+  },
 ];
 
 // ── Templates por rubro ────────────────────────────────────────────

@@ -239,11 +239,14 @@ function VistaSocio({ token }) {
       {/* Columna etapas */}
       <div className="px-3.5 pt-3.5 md:flex-1 md:min-w-0 md:overflow-y-auto md:px-6 md:pt-5">
         {etapas.map(etapa => {
-          const open = !!expandidas[etapa.id];
-          const ep   = pctEtapa(etapa);
-          const mf   = fmtMonto(etapa);
+          const open    = !!expandidas[etapa.id];
+          const ep      = pctEtapa(etapa);
+          const mf      = fmtMonto(etapa);
+          const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
           return (
-            <div key={etapa.id} className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden ${cardAccent(ep)}`}>
+            <div key={etapa.id}
+              style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
+              className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden ${eRubroC ? "" : cardAccent(ep)}`}>
               <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
                 className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
                 <div className="flex-1">
@@ -1204,11 +1207,14 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSideba
                       <span className={`inline-block text-[11px] font-bold rounded-md px-2 py-0.5 ${badge.cls}`}>
                         {badge.text}
                       </span>
-                      {obra.obraInfo?.rubro && (
-                        <span className="inline-block text-[11px] font-semibold rounded-md px-2 py-0.5 bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400">
-                          {RUBROS.find(r => r.id === obra.obraInfo.rubro)?.label || obra.obraInfo.rubro}
-                        </span>
-                      )}
+                      {(obra.obraInfo?.rubros || (obra.obraInfo?.rubro ? [obra.obraInfo.rubro] : [])).map(rid => {
+                        const rc = RUBROS.find(r => r.id === rid);
+                        return rc ? (
+                          <span key={rid} className={`inline-block text-[11px] font-semibold rounded-md px-2 py-0.5 ${rc.badge}`}>
+                            {rc.label}
+                          </span>
+                        ) : null;
+                      })}
                       {obra.obraInfo?.tipo && (
                         <span className="inline-block text-[11px] font-semibold rounded-md px-2 py-0.5 bg-ink-100 dark:bg-ink-800 text-ink-500 dark:text-ink-400">
                           {TIPOS_PROYECTO.find(t => t.id === obra.obraInfo.tipo)?.label || obra.obraInfo.tipo}
@@ -1764,19 +1770,23 @@ export default function App() {
             <Label>Por rubro</Label>
             <div className="mt-2.5 flex flex-col gap-3">
               {rubrosActivos.map(rid => {
-                const lbl = RUBROS.find(r => r.id === rid)?.label || rid;
+                const rc  = RUBROS.find(r => r.id === rid);
+                const lbl = rc?.label || rid;
                 const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
                 const cp  = its.filter(i => i.estado === "completado").length;
                 const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+                const isActive = rubroActivo === rid;
                 return (
-                  <button key={rid} onClick={() => setRubroActivo(rubroActivo === rid ? null : rid)}
-                    className="text-left cursor-pointer bg-transparent border-0 p-0">
+                  <button key={rid} onClick={() => setRubroActivo(isActive ? null : rid)}
+                    className="text-left cursor-pointer bg-transparent border-0 p-0 w-full">
                     <div className="flex justify-between items-baseline mb-1">
-                      <span className={`text-[11px] font-semibold ${rubroActivo === rid ? "text-violet-600 dark:text-violet-400" : "text-ink-500 dark:text-ink-400"}`}>{lbl}</span>
-                      <span className={`text-[12px] font-bold ${progressColor(rp)}`}>{rp}%</span>
+                      <span className={`text-[11px] font-semibold transition-colors ${isActive ? (rc?.text || "text-violet-600 dark:text-violet-400") : "text-ink-500 dark:text-ink-400"}`}>
+                        {lbl}
+                      </span>
+                      <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
                     </div>
-                    <div className="h-0.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${rp}%`, background: progressStroke(rp) }} />
+                    <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${rp}%`, background: rc?.hex || progressStroke(rp) }} />
                     </div>
                   </button>
                 );
@@ -1803,22 +1813,25 @@ export default function App() {
                 General
               </button>
               {rubrosActivos.map(rid => {
-                const lbl = RUBROS.find(r => r.id === rid)?.label || rid;
+                const rc     = RUBROS.find(r => r.id === rid);
+                const lbl    = rc?.label || rid;
                 const active = rubroActivo === rid;
                 return (
                   <div key={rid} className="flex-shrink-0 flex">
                     <button onClick={() => setRubroActivo(rid)}
-                      className={`px-3.5 py-1.5 rounded-l-full text-[12px] font-semibold border-y border-l cursor-pointer transition-colors ${
+                      style={active ? { background: rc?.hex, borderColor: rc?.hex, color: "white" } : {}}
+                      className={`px-3.5 py-1.5 rounded-l-full text-[12px] font-semibold border-y border-l cursor-pointer transition-all ${
                         active
-                          ? "bg-violet-600 text-white border-violet-600"
-                          : "bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-400 border-ink-200 dark:border-ink-700 hover:border-violet-400"
+                          ? "border-transparent"
+                          : `bg-white dark:bg-ink-800 border-ink-200 dark:border-ink-700 ${rc?.text || "text-ink-500 dark:text-ink-400"} hover:border-current`
                       }`}>
                       {lbl}
                     </button>
                     <button onClick={() => removeRubro(rid)} title="Eliminar rubro"
-                      className={`px-2 py-1.5 rounded-r-full text-[11px] border-y border-r cursor-pointer transition-colors ${
+                      style={active ? { background: rc?.hex, borderColor: rc?.hex, color: "rgba(255,255,255,0.7)" } : {}}
+                      className={`px-2 py-1.5 rounded-r-full text-[11px] border-y border-r cursor-pointer transition-all ${
                         active
-                          ? "bg-violet-600 text-violet-200 border-violet-600 hover:bg-violet-700"
+                          ? "border-transparent hover:opacity-80"
                           : "bg-white dark:bg-ink-800 text-ink-300 dark:text-ink-600 border-ink-200 dark:border-ink-700 hover:text-red-400 hover:border-red-300"
                       }`}>
                       <X size={10} />
@@ -1839,12 +1852,15 @@ export default function App() {
         {/* Etapas */}
         <div className="px-3.5 pt-3 md:px-6 md:pt-4">
         {etapasFiltradas.map(etapa => {
-          const open = !!expandidas[etapa.id];
-          const ep   = pctEtapa(etapa);
-          const mf   = fmtMonto(etapa);
+          const open    = !!expandidas[etapa.id];
+          const ep      = pctEtapa(etapa);
+          const mf      = fmtMonto(etapa);
+          const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
 
           return (
-            <div key={etapa.id} className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden ${cardAccent(ep)}`}>
+            <div key={etapa.id}
+              style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
+              className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden ${eRubroC ? "" : cardAccent(ep)}`}>
               <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
                 className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
                 <div className="flex-1">
@@ -1971,10 +1987,14 @@ export default function App() {
               {RUBROS.filter(r => !rubrosActivos.includes(r.id)).map(r => (
                 <button key={r.id}
                   onClick={() => { addRubro(r.id); setModalRubro(false); setRubroActivo(r.id); }}
-                  className="w-full text-left px-4 py-3.5 rounded-xl border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-800 cursor-pointer hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-colors">
-                  <div className="font-semibold text-sm text-ink dark:text-ink-50">{r.label}</div>
-                  <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
-                    {TEMPLATES[r.id]?.length || 0} etapas predefinidas · se cargan automáticamente
+                  className="w-full text-left px-4 py-3.5 rounded-xl border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-800 cursor-pointer hover:border-current transition-all flex items-center gap-3"
+                  style={{ "--tw-border-opacity": 1 }}>
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: r.hex }} />
+                  <div>
+                    <div className={`font-semibold text-sm ${r.text}`}>{r.label}</div>
+                    <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                      {TEMPLATES[r.id]?.length || 0} etapas predefinidas
+                    </div>
                   </div>
                 </button>
               ))}
