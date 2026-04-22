@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Zap, User, Wrench, MapPin, MessageSquare, ImageIcon,
   Camera, Trash2, Pencil, Check, ArrowLeft, Sun, Moon, Plus, X,
-  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical,
+  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical, FileDown,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
@@ -21,7 +21,7 @@ import {
 import { ETAPAS_DEFAULT, ESTADO_CONFIG, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "./constants/data";
 import { useTheme } from "./hooks/useTheme";
 import { enviarComprobante } from "./services/email";
-import { generarComprobante } from "./services/pdf";
+import { generarComprobante, generarReporteObra } from "./services/pdf";
 
 // ── Helpers ────────────────────────────────────────────────────────
 function pctEtapa(etapa) {
@@ -229,6 +229,7 @@ function ModalFirma({ etapa, obraInfo, onConfirm, onClose }) {
   const [sending,    setSending]    = useState(false);
   const [done,       setDone]       = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [pdfBlobUrl, setPdfBlobUrl] = useState("");
 
   function getPos(e) {
     const canvas = canvasRef.current;
@@ -294,16 +295,19 @@ function ModalFirma({ etapa, obraInfo, onConfirm, onClose }) {
           direccion: obraInfo.direccion || "",
         });
         const nombreArchivo = `Comprobante_${obraInfo.nombre}_${etapa.nombre}`.replace(/\s+/g, "_");
-        pdf.save(`${nombreArchivo}.pdf`);
 
-        // Subir a file.io para incluir link en el mail
         const blob = pdf.output("blob");
+        const localUrl = URL.createObjectURL(blob);
+        setPdfBlobUrl(localUrl);
+
+        // Subir a tmpfiles.org (multi-descarga, 60 días)
         const form = new FormData();
         form.append("file", new File([blob], `${nombreArchivo}.pdf`, { type: "application/pdf" }));
-        form.append("expires", "14d");
-        const res = await fetch("https://file.io", { method: "POST", body: form });
+        const res = await fetch("https://tmpfiles.org/api/v1/upload", { method: "POST", body: form });
         const data = await res.json();
-        if (data.success && data.link) pdfUrl = data.link;
+        if (data.status === "success" && data.data?.url) {
+          pdfUrl = data.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+        }
       } catch (pdfErr) {
         console.error("PDF error:", pdfErr);
       }
@@ -344,10 +348,18 @@ function ModalFirma({ etapa, obraInfo, onConfirm, onClose }) {
             ? emailError
             : "La conformidad fue registrada y el comprobante enviado por email a ambos."}
         </div>
-        <button onClick={onClose}
-          className="w-full py-3 rounded-xl bg-ink dark:bg-white text-white dark:text-ink font-bold text-sm border-0 cursor-pointer">
-          Cerrar
-        </button>
+        <div className="flex flex-col gap-2.5">
+          {pdfBlobUrl && (
+            <a href={pdfBlobUrl} download="comprobante.pdf" target="_blank" rel="noopener noreferrer"
+              className="w-full py-3 rounded-xl bg-violet-600 text-white font-bold text-sm text-center flex items-center justify-center gap-2 no-underline">
+              Descargar comprobante
+            </a>
+          )}
+          <button onClick={onClose}
+            className="w-full py-3 rounded-xl bg-ink dark:bg-white text-white dark:text-ink font-bold text-sm border-0 cursor-pointer">
+            Cerrar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -835,6 +847,7 @@ export default function App() {
   const [cloudStatus, setCloudStatus] = useState("");
   const [confirmItem, setConfirmItem] = useState(null);
   const [copied,      setCopied]      = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
   const fileRef   = useRef();
   const saveTimer = useRef();
   const unsubRef  = useRef();
@@ -926,6 +939,19 @@ export default function App() {
   }
 
 
+  async function descargarReporte() {
+    setReportLoading(true);
+    try {
+      const pdf = await generarReporteObra({ etapas, obraInfo, rubros: RUBROS });
+      const nombre = `Reporte_${obraInfo.nombre || "Obra"}`.replace(/\s+/g, "_");
+      pdf.save(`${nombre}.pdf`);
+    } catch (err) {
+      console.error("Reporte error:", err);
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
   function addItem(etapaId) {
     if (!nuevoItemTexto.trim()) return;
     const ni = { id: Date.now().toString(), tarea: nuevoItemTexto.trim(), estado: "pendiente", comentario: "", foto: null };
@@ -986,6 +1012,11 @@ export default function App() {
             <button onClick={() => setVistaCliente(true)}
               className="border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 rounded-full px-3 py-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-400 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors">
               Vista cliente
+            </button>
+            <button onClick={descargarReporte} disabled={reportLoading}
+              title="Descargar reporte PDF"
+              className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors disabled:opacity-50 flex items-center justify-center">
+              {reportLoading ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
             </button>
             <button onClick={copiarLink}
               className={`border rounded-full px-3 py-1.5 text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
