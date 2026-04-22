@@ -534,8 +534,8 @@ function Sidebar({ open, onClose, activeView, onSetView }) {
   return (
     <>
       <div onClick={onClose}
-        className={`fixed inset-0 bg-ink/60 z-[80] transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`} />
-      <div className={`fixed top-0 left-0 h-full w-72 bg-white dark:bg-ink-900 z-[90] flex flex-col border-r border-ink-200 dark:border-ink-700 transition-transform duration-300 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        className={`fixed inset-0 bg-ink/60 z-[80] transition-opacity duration-300 md:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`} />
+      <div className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-ink-900 z-[90] flex flex-col border-r border-ink-200 dark:border-ink-700 transition-transform duration-300 ease-out md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="px-5 pt-10 pb-6 border-b border-ink-100 dark:border-ink-800">
           <div className="flex items-center gap-2 mb-1">
             <Zap size={14} className="text-violet-600 dark:text-violet-400" />
@@ -579,10 +579,10 @@ function VistaFinanciero({ obras, onOpenSidebar }) {
 
   return (
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-8">
-      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 pt-7 pb-5">
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 md:px-8 pt-7 pb-5">
         <div className="flex items-center gap-3 mb-1">
           <button onClick={onOpenSidebar}
-            className="bg-ink-50 dark:bg-ink-800 border-0 rounded-xl p-2 cursor-pointer text-ink-500 dark:text-ink-400 flex-shrink-0">
+            className="md:hidden bg-ink-50 dark:bg-ink-800 border-0 rounded-xl p-2 cursor-pointer text-ink-500 dark:text-ink-400 flex-shrink-0">
             <Menu size={18} />
           </button>
           <div>
@@ -611,7 +611,7 @@ function VistaFinanciero({ obras, onOpenSidebar }) {
         )}
       </div>
 
-      <div className="px-3.5 pt-4 flex flex-col gap-3">
+      <div className="px-3.5 md:px-8 pt-4 md:grid md:grid-cols-2 md:gap-4 md:items-start">
         {conDatos.length === 0 ? (
           <div className="text-center py-16 px-5">
             <Wallet size={44} className="text-ink-200 dark:text-ink-700 mx-auto mb-4" />
@@ -695,13 +695,15 @@ function HomeView({ obras, uid, userNombre, onSelectObra, onEliminar }) {
   return (
     <>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} activeView={activeView} onSetView={setActiveView} />
-      {activeView === "obras" && (
-        <ListaObras obras={obras} onSelect={onSelectObra} onEliminar={onEliminar}
-          uid={uid} userNombre={userNombre} onOpenSidebar={() => setSidebarOpen(true)} />
-      )}
-      {activeView === "financiero" && (
-        <VistaFinanciero obras={obras} onOpenSidebar={() => setSidebarOpen(true)} />
-      )}
+      <div className="md:ml-64">
+        {activeView === "obras" && (
+          <ListaObras obras={obras} onSelect={onSelectObra} onEliminar={onEliminar}
+            uid={uid} userNombre={userNombre} onOpenSidebar={() => setSidebarOpen(true)} />
+        )}
+        {activeView === "financiero" && (
+          <VistaFinanciero obras={obras} onOpenSidebar={() => setSidebarOpen(true)} />
+        )}
+      </div>
     </>
   );
 }
@@ -905,11 +907,11 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSideba
   }
 
   return (
-    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24">
-      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 pt-7 pb-6">
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24 md:pb-8">
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 md:px-8 pt-7 pb-6">
         <div className="flex items-center gap-3">
           <button onClick={onOpenSidebar}
-            className="bg-ink-50 dark:bg-ink-800 border-0 rounded-xl p-2 cursor-pointer text-ink-500 dark:text-ink-400 flex-shrink-0">
+            className="md:hidden bg-ink-50 dark:bg-ink-800 border-0 rounded-xl p-2 cursor-pointer text-ink-500 dark:text-ink-400 flex-shrink-0">
             <Menu size={18} />
           </button>
           <div>
@@ -923,7 +925,7 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSideba
         </div>
       </div>
 
-      <div className="px-3.5 pt-4">
+      <div className="px-3.5 md:px-8 pt-4 md:grid md:grid-cols-2 md:gap-3 md:items-start">
         {obras.length === 0 && (
           <div className="text-center py-16 px-5">
             <Building2 size={44} className="text-ink-200 dark:text-ink-700 mx-auto mb-4" />
@@ -1354,7 +1356,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16">
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16 md:max-w-3xl md:mx-auto">
 
       {/* Header */}
       <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 pt-5 pb-4">
