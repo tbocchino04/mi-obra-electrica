@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
