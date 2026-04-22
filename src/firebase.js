@@ -59,6 +59,14 @@ export function escucharObraPorToken(token, callback) {
   });
 }
 
+export function escucharObraPorSocioToken(token, callback) {
+  const q = query(collection(db, "obras"), where("socioToken", "==", token));
+  return onSnapshot(q, snap => {
+    if (!snap.empty) callback({ id: snap.docs[0].id, ...snap.docs[0].data() });
+    else callback(null);
+  });
+}
+
 export function escucharObras(uid, callback) {
   const q = query(collection(db, "obras"), where("uid", "==", uid));
   return onSnapshot(q, snap => {

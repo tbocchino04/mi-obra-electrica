@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Zap, User, Wrench, MapPin, MessageSquare, ImageIcon,
   Camera, Trash2, Pencil, Check, ArrowLeft, Sun, Moon, Plus, X,
-  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical, FileDown, Menu, Wallet,
+  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical, FileDown, Menu, Wallet, Users,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
@@ -15,7 +15,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import gsap from "gsap";
 import {
-  guardarObra, escucharObra, escucharObras, escucharObraPorToken,
+  guardarObra, escucharObra, escucharObras, escucharObraPorToken, escucharObraPorSocioToken,
   crearObra, eliminarObra, registrar, login, logout, onAuth, obtenerPerfil,
 } from "./firebase";
 import { ETAPAS_DEFAULT, ESTADO_CONFIG, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "./constants/data";
@@ -138,6 +138,243 @@ function ModalConfirm({ mensaje, onConfirm, onCancel }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Vista Socio (link de socio) ───────────────────────────────────
+function VistaSocio({ token }) {
+  const [obra,       setObra]       = useState(undefined);
+  const [expandidas, setExpandidas] = useState({});
+  const [modalItem,  setModalItem]  = useState(null);
+  const [saving,     setSaving]     = useState(false);
+  const { dark, toggle: toggleDark } = useTheme();
+  const fileRef = useRef(null);
+
+  useEffect(() => escucharObraPorSocioToken(token, setObra), [token]);
+
+  async function updateItemSocio(etapaId, itemId, changes) {
+    if (!obra) return;
+    const newEtapas = (obra.etapas || []).map(e =>
+      e.id === etapaId
+        ? { ...e, items: (e.items || []).map(i => i.id === itemId ? { ...i, ...changes } : i) }
+        : e
+    );
+    setSaving(true);
+    await guardarObra(obra.id, { etapas: newEtapas });
+    setSaving(false);
+    setModalItem(prev => prev ? { ...prev, item: { ...prev.item, ...changes } } : null);
+  }
+
+  if (obra === undefined) return <Spinner />;
+  if (!obra) return (
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink flex items-center justify-center px-6">
+      <div className="text-center">
+        <div className="text-4xl mb-4">🔍</div>
+        <div className="font-bold text-lg text-ink dark:text-ink-50 mb-2">Link inválido</div>
+        <div className="text-sm text-ink-500 dark:text-ink-400">Este link de socio no existe o fue eliminado.</div>
+      </div>
+    </div>
+  );
+
+  const etapas  = obra.etapas  || [];
+  const obraInfo = obra.obraInfo || {};
+  const total   = etapas.flatMap(e => e.items || []).length;
+  const comp    = etapas.flatMap(e => e.items || []).filter(i => i.estado === "completado").length;
+  const pct     = total ? Math.round(comp / total * 100) : 0;
+  const pColor  = progressStroke(pct);
+
+  return (
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16 md:pb-0 md:flex md:h-screen">
+
+      {/* Panel izquierdo / header */}
+      <div className="bg-white dark:bg-ink-900 border-b md:border-b-0 md:border-r border-ink-200 dark:border-ink-700 px-5 pt-5 pb-4 md:w-80 lg:w-96 md:flex-shrink-0 md:h-full md:overflow-y-auto md:pb-8">
+        <div className="flex items-center justify-between mb-5">
+          <div className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[10px] font-bold tracking-widest px-2.5 py-1 rounded-full">
+            <Users size={10} /> SOCIO
+          </div>
+          <div className="flex items-center gap-1.5">
+            {saving && <Loader2 size={13} className="animate-spin text-ink-400 dark:text-ink-500" />}
+            <button onClick={toggleDark}
+              className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors">
+              {dark ? <Sun size={13} /> : <Moon size={13} />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 mb-1">
+          <Zap size={12} className="text-violet-600 dark:text-violet-400" />
+          <Label>GRUPO V&B</Label>
+        </div>
+        <div className="text-[22px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-snug mb-1">{obraInfo.nombre}</div>
+        {obraInfo.cliente && (
+          <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400 mb-0.5">
+            <User size={11} /> {obraInfo.cliente}
+          </div>
+        )}
+        {obraInfo.direccion && (
+          <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
+            <MapPin size={11} /> {obraInfo.direccion}
+          </div>
+        )}
+
+        <div className="mt-4">
+          <div className="flex justify-between items-baseline mb-1.5">
+            <Label>Progreso total</Label>
+            <span className={`text-[22px] font-bold tracking-[-0.04em] ${progressColor(pct)}`}>{pct}%</span>
+          </div>
+          <div className="h-0.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${pct}%`, background: pColor }} />
+          </div>
+          <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-1.5 text-right">{comp} de {total} tareas</div>
+        </div>
+
+        <div className="mt-5 pt-4 border-t border-ink-100 dark:border-ink-800">
+          <div className="text-[11px] text-ink-400 dark:text-ink-500 leading-relaxed">
+            Podés actualizar el estado de los ítems y agregar comentarios y fotos. Los cambios se guardan en tiempo real.
+          </div>
+        </div>
+      </div>
+
+      {/* Columna etapas */}
+      <div className="px-3.5 pt-3.5 md:flex-1 md:min-w-0 md:overflow-y-auto md:px-6 md:pt-5">
+        {etapas.map(etapa => {
+          const open = !!expandidas[etapa.id];
+          const ep   = pctEtapa(etapa);
+          const mf   = fmtMonto(etapa);
+          return (
+            <div key={etapa.id} className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden ${cardAccent(ep)}`}>
+              <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
+                className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
+                    {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
+                  </div>
+                  <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                    {(etapa.items || []).filter(i => i.estado === "completado").length}/{(etapa.items || []).length} completados
+                    {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-9 h-9">
+                    <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
+                      <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
+                      <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+                        stroke={progressStroke(ep)} strokeDasharray={`${ep * 0.942} 100`}
+                        style={{ transition: "stroke-dasharray .4s ease" }} />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+                  </div>
+                  <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+                </div>
+              </div>
+
+              <Accordion open={open}>
+                <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
+                  {(etapa.items || []).map(item => {
+                    const cfg = ESTADO_CONFIG[item.estado] || ESTADO_CONFIG.pendiente;
+                    return (
+                      <div key={item.id} onClick={() => setModalItem({ etapaId: etapa.id, item })}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 cursor-pointer border-l-[3px] ${cfg.border} hover:opacity-90 transition-opacity`}>
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[13px] font-medium text-ink dark:text-ink-100 leading-snug">{item.tarea}</div>
+                          {item.comentario && (
+                            <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5 truncate">{item.comentario}</div>
+                          )}
+                        </div>
+                        {item.foto && <Camera size={12} className="text-ink-300 flex-shrink-0" />}
+                        <span className={`text-[10px] font-bold rounded-md px-1.5 py-0.5 flex-shrink-0 ${cfg.color}`}>{cfg.label}</span>
+                      </div>
+                    );
+                  })}
+                  {etapa.firma && (
+                    <div className="mt-2 flex items-center gap-2 py-2 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
+                      <FileCheck size={12} className="text-emerald-600 flex-shrink-0" />
+                      <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold">
+                        Firmado por {etapa.firma.firmante} · {etapa.firma.fecha}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Accordion>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal ítem socio */}
+      {modalItem && (
+        <div className="fixed inset-0 bg-ink/60 flex items-end md:items-center md:justify-center z-[100]"
+          onClick={e => { if (e.target === e.currentTarget) setModalItem(null); }}>
+          <div className="bg-white dark:bg-ink-900 rounded-t-3xl md:rounded-3xl px-5 pt-5 pb-11 md:pb-6 w-full md:max-w-lg max-h-[90dvh] md:max-h-[85vh] overflow-y-auto border border-ink-200 dark:border-ink-700 border-b-0 md:border animate-[slideUp_.22s_ease-out_both]">
+            <SheetHandle />
+            <div className="flex justify-between items-start mb-5">
+              <div className="font-bold text-base text-ink dark:text-ink-50 flex-1 leading-snug tracking-tight">{modalItem.item.tarea}</div>
+              <button onClick={() => setModalItem(null)}
+                className="bg-ink-50 dark:bg-ink-800 border-0 rounded-full w-8 h-8 cursor-pointer text-ink-400 ml-3 flex-shrink-0 flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <Label>Estado</Label>
+              <div className="flex gap-2 flex-wrap mt-2.5">
+                {Object.entries(ESTADO_CONFIG).map(([k, v]) => {
+                  const active = modalItem.item.estado === k;
+                  return (
+                    <button key={k} onClick={() => updateItemSocio(modalItem.etapaId, modalItem.item.id, { estado: k })}
+                      className={`px-4 py-2 rounded-xl border text-sm font-semibold cursor-pointer transition-all ${
+                        active ? `${v.border} ${v.bg} ${v.bgDark} ${v.color}` : "border-ink-200 dark:border-ink-700 bg-transparent text-ink-400 dark:text-ink-500"
+                      }`}>
+                      {v.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <Label>Comentario</Label>
+              <textarea value={modalItem.item.comentario || ""}
+                onChange={e => setModalItem(prev => ({ ...prev, item: { ...prev.item, comentario: e.target.value } }))}
+                onBlur={e => updateItemSocio(modalItem.etapaId, modalItem.item.id, { comentario: e.target.value })}
+                placeholder="Nota u observación..."
+                className="w-full px-3.5 py-3 rounded-xl border border-ink-200 dark:border-ink-700 text-sm resize-none min-h-[80px] bg-ink-50 dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none focus:border-violet-500 transition-colors mt-2 leading-relaxed" />
+            </div>
+
+            <div>
+              <Label>Foto Evidencia</Label>
+              <div className="mt-2">
+                {modalItem.item.foto ? (
+                  <div>
+                    <img src={modalItem.item.foto} alt="evidencia" className="w-full rounded-2xl max-h-[220px] object-cover" />
+                    <button onClick={() => updateItemSocio(modalItem.etapaId, modalItem.item.id, { foto: null })}
+                      className="mt-2.5 bg-red-50 dark:bg-red-950/40 text-red-500 border-0 rounded-lg px-4 py-2 cursor-pointer font-bold text-xs">
+                      Eliminar foto
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => fileRef.current.click()}
+                    className="w-full py-6 border border-dashed border-ink-200 dark:border-ink-700 rounded-2xl bg-ink-50 dark:bg-ink-800 text-ink-400 dark:text-ink-500 cursor-pointer flex flex-col items-center gap-2 hover:border-violet-400 transition-colors">
+                    <Camera size={26} />
+                    <span className="text-sm font-semibold">Subir foto de evidencia</span>
+                    <span className="text-xs">Tocá para seleccionar</span>
+                  </button>
+                )}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={e => {
+                  const file = e.target.files[0]; if (!file) return;
+                  const r = new FileReader();
+                  r.onload = ev => updateItemSocio(modalItem.etapaId, modalItem.item.id, { foto: ev.target.result });
+                  r.readAsDataURL(file);
+                }} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -894,6 +1131,7 @@ function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSideba
     await crearObra({
       uid,
       clienteToken: crypto.randomUUID(),
+      socioToken:   crypto.randomUUID(),
       obraInfo: {
         nombre: nombre.trim(), cliente: cliente.trim(), direccion: direccion.trim(),
         clienteEmail: clienteEmail.trim(), adminEmail: adminEmail.trim(),
@@ -1199,9 +1437,11 @@ function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = 
 
 // ── App Principal ──────────────────────────────────────────────────
 const clienteToken = new URLSearchParams(window.location.search).get("c");
+const socioToken   = new URLSearchParams(window.location.search).get("s");
 
 export default function App() {
   if (clienteToken) return <VistaPublica token={clienteToken} />;
+  if (socioToken)   return <VistaSocio   token={socioToken}   />;
   const { dark, toggle: toggleDark }  = useTheme();
   const [user,        setUser]        = useState(undefined);
   const [userProfile, setUserProfile] = useState(null);
@@ -1219,6 +1459,7 @@ export default function App() {
   const [cloudStatus, setCloudStatus] = useState("");
   const [confirmItem, setConfirmItem] = useState(null);
   const [copied,        setCopied]        = useState(false);
+  const [copiedSocio,   setCopiedSocio]   = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const fileRef   = useRef();
   const saveTimer = useRef();
@@ -1311,6 +1552,19 @@ export default function App() {
   }
 
 
+  async function copiarLinkSocio() {
+    let token = obraActiva.socioToken;
+    if (!token) {
+      token = crypto.randomUUID();
+      await guardarObra(obraActiva.id, { socioToken: token });
+      setObraActiva(prev => ({ ...prev, socioToken: token }));
+    }
+    const url = `${window.location.origin}${window.location.pathname}?s=${token}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedSocio(true);
+    setTimeout(() => setCopiedSocio(false), 2500);
+  }
+
   async function descargarReporte() {
     setReportLoading(true);
     try {
@@ -1389,6 +1643,15 @@ export default function App() {
               title="Descargar reporte PDF"
               className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors disabled:opacity-50 flex items-center justify-center">
               {reportLoading ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
+            </button>
+            <button onClick={copiarLinkSocio}
+              className={`border rounded-full px-3 py-1.5 text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                copiedSocio
+                  ? "border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400"
+                  : "border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-700"
+              }`}>
+              {copiedSocio ? <Check size={11} /> : <Users size={11} />}
+              {copiedSocio ? "¡Copiado!" : "Link socio"}
             </button>
             <button onClick={copiarLink}
               className={`border rounded-full px-3 py-1.5 text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
