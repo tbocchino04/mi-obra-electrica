@@ -1084,7 +1084,7 @@ function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = 
 
   return (
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink">
-      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 pt-6 pb-5">
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 md:px-8 pt-6 pb-5">
         {!esPublica && (
           <button onClick={onVolver}
             className="bg-transparent border-0 text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center gap-1.5 mb-5 p-0">
@@ -1119,8 +1119,8 @@ function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = 
         </div>
       </div>
 
-      <div className="px-3.5 pt-4">
-        <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 p-5 mb-3.5">
+      <div className="px-3.5 md:px-8 pt-4 md:pt-6 md:grid md:grid-cols-2 md:gap-6 md:items-start">
+        <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 p-5 mb-3.5 md:mb-0">
           <Label>Avance por etapa</Label>
           <div className="mt-4 flex flex-col gap-4">
             {etapas.map(etapa => {
@@ -1161,7 +1161,7 @@ function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-2.5">
           {Object.entries(ESTADO_CONFIG).map(([k, v]) => {
             const cnt = etapas.flatMap(e => e.items).filter(i => i.estado === k).length;
             return (
@@ -1356,10 +1356,10 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16 md:max-w-3xl md:mx-auto">
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16 md:pb-0 md:flex md:h-screen">
 
-      {/* Header */}
-      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 pt-5 pb-4">
+      {/* Header / Panel izquierdo */}
+      <div className="bg-white dark:bg-ink-900 border-b md:border-b-0 md:border-r border-ink-200 dark:border-ink-700 px-5 pt-5 pb-4 md:w-80 lg:w-96 md:flex-shrink-0 md:h-full md:overflow-y-auto md:pb-8">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <button onClick={() => setObraActiva(null)}
@@ -1432,7 +1432,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div className="text-[10px] text-ink-400 dark:text-ink-600 mt-1.5 tracking-widest font-medium">TOCA PARA EDITAR</div>
+            <div className="text-[10px] text-ink-400 dark:text-ink-600 mt-1.5 tracking-widest font-medium md:hidden">TOCA PARA EDITAR</div>
           </div>
         )}
 
@@ -1493,7 +1493,7 @@ export default function App() {
       </div>
 
       {/* Etapas */}
-      <div className="px-3.5 pt-3.5">
+      <div className="px-3.5 pt-3.5 md:flex-1 md:min-w-0 md:overflow-y-auto md:px-6 md:pt-5">
         {etapas.map(etapa => {
           const open = !!expandidas[etapa.id];
           const ep   = pctEtapa(etapa);
@@ -1611,9 +1611,9 @@ export default function App() {
 
       {/* Modal ítem */}
       {modalItem && (
-        <div className="fixed inset-0 bg-ink/60 flex items-end z-[100]"
+        <div className="fixed inset-0 bg-ink/60 flex items-end md:items-center md:justify-center z-[100]"
           onClick={e => { if (e.target === e.currentTarget) setModalItem(null); }}>
-          <div className="bg-white dark:bg-ink-900 rounded-t-3xl px-5 pt-5 pb-11 w-full max-h-[90dvh] overflow-y-auto border border-ink-200 dark:border-ink-700 border-b-0 animate-[slideUp_.22s_ease-out_both]">
+          <div className="bg-white dark:bg-ink-900 rounded-t-3xl md:rounded-3xl px-5 pt-5 pb-11 md:pb-6 w-full md:max-w-lg md:w-full max-h-[90dvh] md:max-h-[85vh] overflow-y-auto border border-ink-200 dark:border-ink-700 border-b-0 md:border animate-[slideUp_.22s_ease-out_both]">
             <SheetHandle />
             <div className="flex justify-between items-start mb-5">
               <div className="font-bold text-base text-ink dark:text-ink-50 flex-1 leading-snug tracking-tight">{modalItem.item.tarea}</div>
