@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Zap, User, Wrench, MapPin, MessageSquare, ImageIcon,
   Camera, Trash2, Pencil, Check, ArrowLeft, Sun, Moon, Plus, X,
-  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical, FileDown, Menu, Wallet, Users,
+  Building2, ChevronDown, Cloud, Loader2, PenLine, FileCheck, LogOut, Share2, GripVertical, FileDown, Menu, Wallet, Users, MoreHorizontal,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor,
@@ -1472,6 +1472,7 @@ export default function App() {
   const [reportLoading, setReportLoading] = useState(false);
   const [rubroActivo,   setRubroActivo]   = useState(null);
   const [modalRubro,    setModalRubro]    = useState(false);
+  const [menuCompartir, setMenuCompartir] = useState(false);
   const fileRef   = useRef();
   const saveTimer = useRef();
   const unsubRef  = useRef();
@@ -1685,29 +1686,69 @@ export default function App() {
               className="border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 rounded-full px-3 py-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-400 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors">
               Vista cliente
             </button>
-            <button onClick={descargarReporte} disabled={reportLoading}
-              title="Descargar reporte PDF"
-              className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors disabled:opacity-50 flex items-center justify-center">
-              {reportLoading ? <Loader2 size={13} className="animate-spin" /> : <FileDown size={13} />}
-            </button>
-            <button onClick={copiarLinkSocio}
-              className={`border rounded-full px-3 py-1.5 text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
-                copiedSocio
-                  ? "border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400"
-                  : "border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-700"
-              }`}>
-              {copiedSocio ? <Check size={11} /> : <Users size={11} />}
-              {copiedSocio ? "¡Copiado!" : "Link socio"}
-            </button>
-            <button onClick={copiarLink}
-              className={`border rounded-full px-3 py-1.5 text-[11px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
-                copied
-                  ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                  : "border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-600 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-700"
-              }`}>
-              {copied ? <Check size={11} /> : <Share2 size={11} />}
-              {copied ? "¡Copiado!" : "Link cliente"}
-            </button>
+            {/* Menú compartir/exportar */}
+            {menuCompartir && (
+              <div className="fixed inset-0 z-[65]" onClick={() => setMenuCompartir(false)} />
+            )}
+            <div className="relative z-[70]">
+              <button onClick={() => setMenuCompartir(v => !v)}
+                className={`border rounded-full p-1.5 cursor-pointer transition-colors flex items-center justify-center ${
+                  menuCompartir
+                    ? "border-violet-400 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400"
+                    : "border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-700"
+                }`}>
+                <MoreHorizontal size={13} />
+              </button>
+
+              {menuCompartir && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 shadow-modal overflow-hidden animate-[fadeIn_.15s_ease-out_both]">
+
+                  <button onClick={() => { copiarLinkSocio(); setTimeout(() => setMenuCompartir(false), 1600); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${copiedSocio ? "bg-violet-100 dark:bg-violet-950/50" : "bg-ink-100 dark:bg-ink-800"}`}>
+                      {copiedSocio ? <Check size={12} className="text-violet-600 dark:text-violet-400" /> : <Users size={12} className="text-ink-500 dark:text-ink-400" />}
+                    </div>
+                    <div>
+                      <div className={`text-[12px] font-semibold leading-none ${copiedSocio ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
+                        {copiedSocio ? "¡Link copiado!" : "Link para socios"}
+                      </div>
+                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Pueden marcar progreso</div>
+                    </div>
+                  </button>
+
+                  <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
+
+                  <button onClick={() => { copiarLink(); setTimeout(() => setMenuCompartir(false), 1600); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${copied ? "bg-emerald-100 dark:bg-emerald-950/50" : "bg-ink-100 dark:bg-ink-800"}`}>
+                      {copied ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Share2 size={12} className="text-ink-500 dark:text-ink-400" />}
+                    </div>
+                    <div>
+                      <div className={`text-[12px] font-semibold leading-none ${copied ? "text-emerald-600 dark:text-emerald-400" : "text-ink dark:text-ink-50"}`}>
+                        {copied ? "¡Link copiado!" : "Link para cliente"}
+                      </div>
+                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Solo lectura</div>
+                    </div>
+                  </button>
+
+                  <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
+
+                  <button onClick={() => { descargarReporte(); setMenuCompartir(false); }} disabled={reportLoading}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left disabled:opacity-50">
+                    <div className="w-7 h-7 rounded-xl bg-ink-100 dark:bg-ink-800 flex items-center justify-center flex-shrink-0">
+                      {reportLoading ? <Loader2 size={12} className="animate-spin text-ink-500 dark:text-ink-400" /> : <FileDown size={12} className="text-ink-500 dark:text-ink-400" />}
+                    </div>
+                    <div>
+                      <div className="text-[12px] font-semibold leading-none text-ink dark:text-ink-50">
+                        {reportLoading ? "Generando PDF..." : "Descargar reporte"}
+                      </div>
+                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">PDF completo de la obra</div>
+                    </div>
+                  </button>
+
+                </div>
+              )}
+            </div>
             <button onClick={toggleDark}
               className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors">
               {dark ? <Sun size={13} /> : <Moon size={13} />}
