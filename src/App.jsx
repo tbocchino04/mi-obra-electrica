@@ -48,6 +48,26 @@ function fmtMonto(etapa) {
   if (!etapa.monto) return null;
   return `${(etapa.moneda || "ARS") === "USD" ? "USD " : "$ "}${Number(etapa.monto).toLocaleString("es-AR")}`;
 }
+function calcFinanciero(etapas) {
+  const conMonto = etapas.filter(e => e.monto && Number(e.monto) > 0);
+  if (!conMonto.length) return null;
+  const sum = (arr) => arr.reduce((acc, e) => acc + Number(e.monto), 0);
+  const porMoneda = (moneda) => ({
+    total:    sum(conMonto.filter(e => (e.moneda || "ARS") === moneda)),
+    cobrado:  sum(conMonto.filter(e => (e.moneda || "ARS") === moneda && e.firma)),
+  });
+  const ars = porMoneda("ARS");
+  const usd = porMoneda("USD");
+  return {
+    ars: ars.total > 0 ? ars : null,
+    usd: usd.total > 0 ? usd : null,
+  };
+}
+function fmtNum(n, moneda) {
+  const prefix = moneda === "USD" ? "USD " : "$ ";
+  return `${prefix}${Number(n).toLocaleString("es-AR")}`;
+}
+
 function traducirError(code) {
   const map = {
     "auth/user-not-found":      "Email no registrado",
@@ -1083,6 +1103,48 @@ export default function App() {
             {completados} de {totalItems} tareas
           </div>
         </div>
+
+        {/* Resumen financiero */}
+        {(() => {
+          const fin = calcFinanciero(etapas);
+          if (!fin) return null;
+          return (
+            <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+              <Label>Resumen financiero</Label>
+              <div className="mt-2 flex flex-col gap-2">
+                {[fin.ars && { ...fin.ars, moneda: "ARS" }, fin.usd && { ...fin.usd, moneda: "USD" }]
+                  .filter(Boolean).map(({ total, cobrado, moneda }) => {
+                    const pendiente = total - cobrado;
+                    const pctCob = total ? Math.round(cobrado / total * 100) : 0;
+                    return (
+                      <div key={moneda}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[11px] text-ink-400 dark:text-ink-500">
+                            Total {moneda}
+                          </span>
+                          <span className="text-[13px] font-bold text-ink dark:text-ink-50">
+                            {fmtNum(total, moneda)}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden mb-1.5">
+                          <div className="h-full rounded-full bg-emerald-500 transition-[width_.45s_ease]"
+                            style={{ width: `${pctCob}%` }} />
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                            Cobrado: {fmtNum(cobrado, moneda)}
+                          </span>
+                          <span className="text-ink-400 dark:text-ink-500">
+                            Pendiente: {fmtNum(pendiente, moneda)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Etapas */}
