@@ -1714,30 +1714,32 @@ export default function App() {
               {menuCompartir && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 shadow-modal overflow-hidden animate-[fadeIn_.15s_ease-out_both]">
 
-                  {rubrosActivos.map((rid, idx) => {
-                    const rc = RUBROS.find(r => r.id === rid);
-                    const isCopied = copiedSocioRubro === rid;
+                  {(() => {
+                    const rc = RUBROS.find(r => r.id === rubroActivo);
+                    const isCopied = copiedSocioRubro === rubroActivo;
+                    const disabled = !rubroActivo;
                     return (
-                      <div key={rid}>
-                        {idx > 0 && <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />}
-                        <button onClick={() => { copiarLinkSocioRubro(rid); setTimeout(() => setMenuCompartir(false), 1600); }}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
-                          <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-                            style={{ background: isCopied ? "rgb(237 233 254)" : (rc ? rc.hex + "28" : undefined) }}>
-                            {isCopied
-                              ? <Check size={12} className="text-violet-600 dark:text-violet-400" />
-                              : <Users size={12} style={rc ? { color: rc.hex } : { color: "#9896aa" }} />}
+                      <button
+                        onClick={disabled ? undefined : () => { copiarLinkSocioRubro(rubroActivo); setTimeout(() => setMenuCompartir(false), 1600); }}
+                        disabled={disabled}
+                        className={`w-full flex items-center gap-3 px-4 py-3 border-0 bg-transparent text-left transition-colors ${disabled ? "opacity-40 cursor-default" : "hover:bg-ink-50 dark:hover:bg-ink-800 cursor-pointer"}`}>
+                        <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                          style={{ background: isCopied ? "rgb(237 233 254)" : (rc ? rc.hex + "28" : "#f0ebfb") }}>
+                          {isCopied
+                            ? <Check size={12} className="text-violet-600 dark:text-violet-400" />
+                            : <Users size={12} style={{ color: rc ? rc.hex : "#9896aa" }} />}
+                        </div>
+                        <div>
+                          <div className={`text-[12px] font-semibold leading-none ${isCopied ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
+                            {isCopied ? "¡Link copiado!" : rc ? `Socio · ${rc.label}` : "Link para socios"}
                           </div>
-                          <div>
-                            <div className={`text-[12px] font-semibold leading-none ${isCopied ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
-                              {isCopied ? "¡Link copiado!" : `Socio · ${rc?.label || rid}`}
-                            </div>
-                            <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Pueden marcar progreso</div>
+                          <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">
+                            {disabled ? "Seleccioná un rubro primero" : "Pueden marcar progreso"}
                           </div>
-                        </button>
-                      </div>
+                        </div>
+                      </button>
                     );
-                  })}
+                  })()}
 
                   <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
 
