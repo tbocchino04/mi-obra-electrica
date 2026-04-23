@@ -177,12 +177,16 @@ function VistaSocio({ token }) {
     </div>
   );
 
-  const etapas  = obra.etapas  || [];
   const obraInfo = obra.obraInfo || {};
+  const rubroId  = Object.entries(obra.socioTokensByRubro || {}).find(([, t]) => t === token)?.[0] ?? null;
+  const rubroConfig = RUBROS.find(r => r.id === rubroId);
+  const etapas  = rubroId
+    ? (obra.etapas || []).filter(e => (e.rubro || obraInfo.rubro) === rubroId)
+    : (obra.etapas || []);
   const total   = etapas.flatMap(e => e.items || []).length;
   const comp    = etapas.flatMap(e => e.items || []).filter(i => i.estado === "completado").length;
   const pct     = total ? Math.round(comp / total * 100) : 0;
-  const pColor  = progressStroke(pct);
+  const pColor  = rubroConfig ? rubroConfig.hex : progressStroke(pct);
 
   return (
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16 md:pb-0 md:flex md:h-screen">
@@ -190,8 +194,11 @@ function VistaSocio({ token }) {
       {/* Panel izquierdo / header */}
       <div className="bg-white dark:bg-ink-900 border-b md:border-b-0 md:border-r border-ink-200 dark:border-ink-700 px-5 pt-5 pb-4 md:w-80 lg:w-96 md:flex-shrink-0 md:h-full md:overflow-y-auto md:pb-8">
         <div className="flex items-center justify-between mb-5">
-          <div className="inline-flex items-center gap-1.5 bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[10px] font-bold tracking-widest px-2.5 py-1 rounded-full">
-            <Users size={10} /> SOCIO
+          <div className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest px-2.5 py-1 rounded-full"
+            style={rubroConfig
+              ? { background: rubroConfig.hex + "22", color: rubroConfig.hex }
+              : { background: "rgb(237 233 254)", color: "rgb(109 40 217)" }}>
+            <Users size={10} /> {rubroConfig ? `SOCIO · ${rubroConfig.label.toUpperCase()}` : "SOCIO"}
           </div>
           <div className="flex items-center gap-1.5">
             {saving && <Loader2 size={13} className="animate-spin text-ink-400 dark:text-ink-500" />}
@@ -220,8 +227,9 @@ function VistaSocio({ token }) {
 
         <div className="mt-4">
           <div className="flex justify-between items-baseline mb-1.5">
-            <Label>Progreso total</Label>
-            <span className={`text-[22px] font-bold tracking-[-0.04em] ${progressColor(pct)}`}>{pct}%</span>
+            <Label>{rubroConfig ? `Progreso · ${rubroConfig.label}` : "Progreso total"}</Label>
+            <span className="text-[22px] font-bold tracking-[-0.04em]"
+              style={{ color: pColor }}>{pct}%</span>
           </div>
           <div className="h-0.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
             <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${pct}%`, background: pColor }} />
@@ -1467,8 +1475,8 @@ export default function App() {
   const [saving,      setSaving]      = useState(false);
   const [cloudStatus, setCloudStatus] = useState("");
   const [confirmItem, setConfirmItem] = useState(null);
-  const [copied,        setCopied]        = useState(false);
-  const [copiedSocio,   setCopiedSocio]   = useState(false);
+  const [copied,          setCopied]          = useState(false);
+  const [copiedSocioRubro, setCopiedSocioRubro] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [rubroActivo,   setRubroActivo]   = useState(null);
   const [modalRubro,    setModalRubro]    = useState(false);
@@ -1574,17 +1582,20 @@ export default function App() {
   }
 
 
-  async function copiarLinkSocio() {
-    let token = obraActiva.socioToken;
+  async function copiarLinkSocioRubro(rubroId) {
+    const tokensByRubro = obraActiva.socioTokensByRubro || {};
+    let token = tokensByRubro[rubroId];
     if (!token) {
       token = crypto.randomUUID();
-      await guardarObra(obraActiva.id, { socioToken: token });
-      setObraActiva(prev => ({ ...prev, socioToken: token }));
+      const newTokensByRubro = { ...tokensByRubro, [rubroId]: token };
+      const newTokensArray = Object.values(newTokensByRubro);
+      await guardarObra(obraActiva.id, { socioTokensByRubro: newTokensByRubro, socioTokensArray: newTokensArray });
+      setObraActiva(prev => ({ ...prev, socioTokensByRubro: newTokensByRubro, socioTokensArray: newTokensArray }));
     }
     const url = `${window.location.origin}${window.location.pathname}?s=${token}`;
     await navigator.clipboard.writeText(url);
-    setCopiedSocio(true);
-    setTimeout(() => setCopiedSocio(false), 2500);
+    setCopiedSocioRubro(rubroId);
+    setTimeout(() => setCopiedSocioRubro(null), 2500);
   }
 
   async function descargarReporte() {
@@ -1703,18 +1714,30 @@ export default function App() {
               {menuCompartir && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 shadow-modal overflow-hidden animate-[fadeIn_.15s_ease-out_both]">
 
-                  <button onClick={() => { copiarLinkSocio(); setTimeout(() => setMenuCompartir(false), 1600); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
-                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${copiedSocio ? "bg-violet-100 dark:bg-violet-950/50" : "bg-ink-100 dark:bg-ink-800"}`}>
-                      {copiedSocio ? <Check size={12} className="text-violet-600 dark:text-violet-400" /> : <Users size={12} className="text-ink-500 dark:text-ink-400" />}
-                    </div>
-                    <div>
-                      <div className={`text-[12px] font-semibold leading-none ${copiedSocio ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
-                        {copiedSocio ? "¡Link copiado!" : "Link para socios"}
+                  {rubrosActivos.map((rid, idx) => {
+                    const rc = RUBROS.find(r => r.id === rid);
+                    const isCopied = copiedSocioRubro === rid;
+                    return (
+                      <div key={rid}>
+                        {idx > 0 && <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />}
+                        <button onClick={() => { copiarLinkSocioRubro(rid); setTimeout(() => setMenuCompartir(false), 1600); }}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
+                          <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                            style={{ background: isCopied ? "rgb(237 233 254)" : (rc ? rc.hex + "28" : undefined) }}>
+                            {isCopied
+                              ? <Check size={12} className="text-violet-600 dark:text-violet-400" />
+                              : <Users size={12} style={rc ? { color: rc.hex } : { color: "#9896aa" }} />}
+                          </div>
+                          <div>
+                            <div className={`text-[12px] font-semibold leading-none ${isCopied ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
+                              {isCopied ? "¡Link copiado!" : `Socio · ${rc?.label || rid}`}
+                            </div>
+                            <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Pueden marcar progreso</div>
+                          </div>
+                        </button>
                       </div>
-                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Pueden marcar progreso</div>
-                    </div>
-                  </button>
+                    );
+                  })}
 
                   <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
 

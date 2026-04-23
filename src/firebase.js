@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, deleteDoc, query, where } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, deleteDoc, query, where, or } from "firebase/firestore";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {
@@ -60,7 +60,13 @@ export function escucharObraPorToken(token, callback) {
 }
 
 export function escucharObraPorSocioToken(token, callback) {
-  const q = query(collection(db, "obras"), where("socioToken", "==", token));
+  const q = query(
+    collection(db, "obras"),
+    or(
+      where("socioTokensArray", "array-contains", token),
+      where("socioToken", "==", token),
+    )
+  );
   return onSnapshot(q, snap => {
     if (!snap.empty) callback({ id: snap.docs[0].id, ...snap.docs[0].data() });
     else callback(null);
