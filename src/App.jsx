@@ -284,19 +284,39 @@ function VistaSocio({ token }) {
               <Accordion open={open}>
                 <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
                   {(etapa.items || []).map(item => {
-                    const cfg = ESTADO_CONFIG[item.estado] || ESTADO_CONFIG.pendiente;
+                    const cfg  = ESTADO_CONFIG[item.estado] || ESTADO_CONFIG.pendiente;
+                    const done = item.estado === "completado";
                     return (
-                      <div key={item.id} onClick={() => setModalItem({ etapaId: etapa.id, item })}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 cursor-pointer border-l-[3px] ${cfg.border} hover:opacity-90 transition-opacity`}>
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
+                      <div key={item.id}
+                        className={`flex items-center gap-2.5 py-2.5 px-2.5 rounded-xl mb-1.5 border border-l-2 transition-colors ${cfg.bg} ${cfg.bgDark} ${cfg.border}`}>
+                        <div onClick={() => updateItemSocio(etapa.id, item.id, { estado: done ? "pendiente" : "completado" })}
+                          className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-all duration-150 cursor-pointer border-[1.5px] ${
+                            done ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white dark:bg-ink-800 border-ink-200 dark:border-ink-600"
+                          } ${done ? "check-anim" : ""}`}>
+                          {done && <Check size={11} strokeWidth={3} />}
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-medium text-ink dark:text-ink-100 leading-snug">{item.tarea}</div>
+                          <div className={`text-[13px] leading-snug ${done ? "line-through text-ink-400 dark:text-ink-500" : "text-ink dark:text-ink-100"}`}>
+                            {item.tarea}
+                          </div>
                           {item.comentario && (
-                            <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5 truncate">{item.comentario}</div>
+                            <div className="flex items-center gap-1 text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                              <MessageSquare size={10} /> {item.comentario}
+                            </div>
+                          )}
+                          {item.foto && (
+                            <div className="flex items-center gap-1 text-[11px] text-violet-500 mt-0.5">
+                              <ImageIcon size={10} /> Foto adjunta
+                            </div>
                           )}
                         </div>
-                        {item.foto && <Camera size={12} className="text-ink-300 flex-shrink-0" />}
-                        <span className={`text-[10px] font-bold rounded-md px-1.5 py-0.5 flex-shrink-0 ${cfg.color}`}>{cfg.label}</span>
+                        <span className={`text-[10px] font-bold rounded-md px-1.5 py-0.5 flex-shrink-0 ${cfg.color} ${cfg.bg} ${cfg.bgDark}`}>
+                          {cfg.label}
+                        </span>
+                        <button onClick={() => setModalItem({ etapaId: etapa.id, item })}
+                          className="bg-transparent border-0 cursor-pointer p-1.5 text-ink-400 dark:text-ink-500 flex-shrink-0 rounded-lg hover:bg-ink-100 dark:hover:bg-ink-700">
+                          <Pencil size={13} />
+                        </button>
                       </div>
                     );
                   })}
