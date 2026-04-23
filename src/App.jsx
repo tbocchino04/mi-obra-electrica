@@ -1583,18 +1583,28 @@ export default function App() {
 
 
   async function copiarLinkSocioRubro(rubroId) {
-    const tokensByRubro = obraActiva.socioTokensByRubro || {};
-    let token = tokensByRubro[rubroId];
-    if (!token) {
-      token = crypto.randomUUID();
-      const newTokensByRubro = { ...tokensByRubro, [rubroId]: token };
-      const newTokensArray = Object.values(newTokensByRubro);
-      await guardarObra(obraActiva.id, { socioTokensByRubro: newTokensByRubro, socioTokensArray: newTokensArray });
-      setObraActiva(prev => ({ ...prev, socioTokensByRubro: newTokensByRubro, socioTokensArray: newTokensArray }));
+    let token;
+    if (!rubroId) {
+      token = obraActiva.socioToken;
+      if (!token) {
+        token = crypto.randomUUID();
+        await guardarObra(obraActiva.id, { socioToken: token });
+        setObraActiva(prev => ({ ...prev, socioToken: token }));
+      }
+    } else {
+      const tokensByRubro = obraActiva.socioTokensByRubro || {};
+      token = tokensByRubro[rubroId];
+      if (!token) {
+        token = crypto.randomUUID();
+        const newTokensByRubro = { ...tokensByRubro, [rubroId]: token };
+        const newTokensArray = Object.values(newTokensByRubro);
+        await guardarObra(obraActiva.id, { socioTokensByRubro: newTokensByRubro, socioTokensArray: newTokensArray });
+        setObraActiva(prev => ({ ...prev, socioTokensByRubro: newTokensByRubro, socioTokensArray: newTokensArray }));
+      }
     }
     const url = `${window.location.origin}${window.location.pathname}?s=${token}`;
     await navigator.clipboard.writeText(url);
-    setCopiedSocioRubro(rubroId);
+    setCopiedSocioRubro(rubroId ?? "general");
     setTimeout(() => setCopiedSocioRubro(null), 2500);
   }
 
@@ -1716,25 +1726,24 @@ export default function App() {
 
                   {(() => {
                     const rc = RUBROS.find(r => r.id === rubroActivo);
-                    const isCopied = copiedSocioRubro === rubroActivo;
-                    const disabled = !rubroActivo;
+                    const copiedKey = rubroActivo ?? "general";
+                    const isCopied = copiedSocioRubro === copiedKey;
                     return (
                       <button
-                        onClick={disabled ? undefined : () => { copiarLinkSocioRubro(rubroActivo); setTimeout(() => setMenuCompartir(false), 1600); }}
-                        disabled={disabled}
-                        className={`w-full flex items-center gap-3 px-4 py-3 border-0 bg-transparent text-left transition-colors ${disabled ? "opacity-40 cursor-default" : "hover:bg-ink-50 dark:hover:bg-ink-800 cursor-pointer"}`}>
+                        onClick={() => { copiarLinkSocioRubro(rubroActivo); setTimeout(() => setMenuCompartir(false), 1600); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 border-0 bg-transparent text-left transition-colors hover:bg-ink-50 dark:hover:bg-ink-800 cursor-pointer">
                         <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-                          style={{ background: isCopied ? "rgb(237 233 254)" : (rc ? rc.hex + "28" : "#f0ebfb") }}>
+                          style={{ background: isCopied ? "rgb(237 233 254)" : (rc ? rc.hex + "28" : "#ede9fe") }}>
                           {isCopied
                             ? <Check size={12} className="text-violet-600 dark:text-violet-400" />
-                            : <Users size={12} style={{ color: rc ? rc.hex : "#9896aa" }} />}
+                            : <Users size={12} style={{ color: rc ? rc.hex : "#7c5cc9" }} />}
                         </div>
                         <div>
                           <div className={`text-[12px] font-semibold leading-none ${isCopied ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
-                            {isCopied ? "¡Link copiado!" : rc ? `Socio · ${rc.label}` : "Link para socios"}
+                            {isCopied ? "¡Link copiado!" : rc ? `Socio · ${rc.label}` : "Socio · General"}
                           </div>
                           <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">
-                            {disabled ? "Seleccioná un rubro primero" : "Pueden marcar progreso"}
+                            {rc ? "Acceso solo a este rubro" : "Acceso completo a la obra"}
                           </div>
                         </div>
                       </button>
