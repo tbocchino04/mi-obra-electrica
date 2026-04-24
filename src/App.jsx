@@ -161,9 +161,14 @@ function VistaSocio({ token }) {
         : e
     );
     setSaving(true);
-    await guardarObra(obra.id, { etapas: newEtapas });
-    setSaving(false);
-    setModalItem(prev => prev ? { ...prev, item: { ...prev.item, ...changes } } : null);
+    try {
+      await guardarObra(obra.id, { etapas: newEtapas });
+      setModalItem(prev => prev ? { ...prev, item: { ...prev.item, ...changes } } : null);
+    } catch (err) {
+      console.error("Error actualizando ítem socio:", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (obra === undefined) return <Spinner />;
@@ -1008,18 +1013,28 @@ function VistaStock({ obras, onOpenSidebar }) {
       ? current.map(s => s.id === itemEdit.id ? { ...s, ...form } : s)
       : [...current, { ...form, id: crypto.randomUUID(), creadoEn: Date.now() }];
     setSaving(true);
-    await guardarObra(obraStockId, { stock: newStock });
-    setSaving(false);
-    setModalOpen(null);
+    try {
+      await guardarObra(obraStockId, { stock: newStock });
+      setModalOpen(null);
+    } catch (err) {
+      console.error("Error guardando stock:", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete() {
     if (!itemEdit || !obraStockId) return;
     const newStock = (obraActiva?.stock || []).filter(s => s.id !== itemEdit.id);
     setSaving(true);
-    await guardarObra(obraStockId, { stock: newStock });
-    setSaving(false);
-    setModalOpen(null);
+    try {
+      await guardarObra(obraStockId, { stock: newStock });
+      setModalOpen(null);
+    } catch (err) {
+      console.error("Error eliminando stock:", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleFactura(e) {
