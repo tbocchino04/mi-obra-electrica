@@ -1092,23 +1092,6 @@ function VistaStock({ obras, onOpenSidebar }) {
           )}
         </div>
 
-        {/* Resumen global */}
-        {!obraActiva && (totalGlobalARS > 0 || totalGlobalUSD > 0) && (
-          <div className="mt-4 flex gap-3 flex-wrap">
-            {totalGlobalARS > 0 && (
-              <div className="bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-900 rounded-xl px-3 py-1.5">
-                <div className="text-[10px] font-bold text-violet-500 dark:text-violet-400 tracking-wider">TOTAL ARS</div>
-                <div className="text-[15px] font-bold text-violet-700 dark:text-violet-300 tracking-tight">$ {totalGlobalARS.toLocaleString("es-AR")}</div>
-              </div>
-            )}
-            {totalGlobalUSD > 0 && (
-              <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 rounded-xl px-3 py-1.5">
-                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">TOTAL USD</div>
-                <div className="text-[15px] font-bold text-emerald-700 dark:text-emerald-300 tracking-tight">USD {totalGlobalUSD.toLocaleString("es-AR")}</div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Totales de obra activa */}
         {obraActiva && stockAll.length > 0 && (() => {
@@ -1149,32 +1132,35 @@ function VistaStock({ obras, onOpenSidebar }) {
                 <div className="text-sm text-ink-400 dark:text-ink-500">Abrí una obra y agregá materiales comprados fuera del presupuesto.</div>
               </div>
             ) : (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-3">
                 {obrasConStock.map(obra => {
                   const { ars, usd } = totales(obra.stock || []);
                   const rubrosDots = RUBROS.filter(r => (obra.stock || []).some(s => s.rubro === r.id));
                   return (
                     <button key={obra.id} onClick={() => setObraStockId(obra.id)}
-                      className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 p-4 text-left hover:shadow-card transition-shadow cursor-pointer w-full">
-                      <div className="flex items-start justify-between gap-2">
+                      className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 p-5 text-left hover:shadow-card transition-shadow cursor-pointer w-full">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight truncate">
+                          <div className="font-bold text-[18px] text-ink dark:text-ink-50 tracking-tight leading-snug truncate">
                             {obra.obraInfo?.nombre || "Sin nombre"}
                           </div>
                           {obra.obraInfo?.cliente && (
-                            <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">{obra.obraInfo.cliente}</div>
+                            <div className="text-[13px] text-ink-400 dark:text-ink-500 mt-1">{obra.obraInfo.cliente}</div>
                           )}
-                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          {obra.obraInfo?.direccion && (
+                            <div className="text-[12px] text-ink-300 dark:text-ink-600 mt-0.5">{obra.obraInfo.direccion}</div>
+                          )}
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
                             {rubrosDots.map(r => (
-                              <div key={r.id} className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.hex }} />
+                              <div key={r.id} className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: r.hex }} />
                             ))}
-                            <span className="text-[11px] text-ink-400 dark:text-ink-500">{(obra.stock || []).length} materiales</span>
+                            <span className="text-[12px] text-ink-400 dark:text-ink-500 font-medium">{(obra.stock || []).length} materiales</span>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          {ars > 0 && <div className="text-[13px] font-bold text-violet-600 dark:text-violet-400">$ {ars.toLocaleString("es-AR")}</div>}
-                          {usd > 0 && <div className="text-[12px] font-bold text-emerald-600 dark:text-emerald-400">USD {usd.toLocaleString("es-AR")}</div>}
-                          <ChevronRight size={15} className="text-ink-300 dark:text-ink-600 ml-auto mt-1" />
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                          {ars > 0 && <div className="text-[15px] font-bold text-violet-600 dark:text-violet-400">$ {ars.toLocaleString("es-AR")}</div>}
+                          {usd > 0 && <div className="text-[14px] font-bold text-emerald-600 dark:text-emerald-400">USD {usd.toLocaleString("es-AR")}</div>}
+                          <ChevronRight size={16} className="text-ink-300 dark:text-ink-600 mt-1" />
                         </div>
                       </div>
                     </button>
@@ -1187,12 +1173,15 @@ function VistaStock({ obras, onOpenSidebar }) {
             {obras.filter(o => !(o.stock || []).length).length > 0 && (
               <div className="mt-5">
                 <Label>Otras obras</Label>
-                <div className="flex flex-col gap-1.5 mt-2">
+                <div className="flex flex-col gap-2 mt-2">
                   {obras.filter(o => !(o.stock || []).length).map(obra => (
                     <button key={obra.id} onClick={() => setObraStockId(obra.id)}
-                      className="bg-white dark:bg-ink-900 rounded-xl border border-ink-200 dark:border-ink-700 px-4 py-3 text-left hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors cursor-pointer w-full flex items-center justify-between">
-                      <span className="text-sm font-semibold text-ink-500 dark:text-ink-400">{obra.obraInfo?.nombre || "Sin nombre"}</span>
-                      <span className="text-[11px] text-ink-300 dark:text-ink-600">Sin materiales · Agregar →</span>
+                      className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 px-5 py-4 text-left hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors cursor-pointer w-full flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[16px] font-bold text-ink-500 dark:text-ink-400 truncate">{obra.obraInfo?.nombre || "Sin nombre"}</div>
+                        {obra.obraInfo?.cliente && <div className="text-[12px] text-ink-300 dark:text-ink-600 mt-0.5">{obra.obraInfo.cliente}</div>}
+                      </div>
+                      <span className="text-[12px] font-medium text-ink-300 dark:text-ink-600 flex-shrink-0 flex items-center gap-1">Agregar <ChevronRight size={13} /></span>
                     </button>
                   ))}
                 </div>
