@@ -21,7 +21,6 @@ import {
 import { ETAPAS_DEFAULT, ESTADO_CONFIG, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "./constants/data";
 import { useTheme } from "./hooks/useTheme";
 import { enviarComprobante } from "./services/email";
-import { generarComprobante, generarReporteObra, generarReporteStock } from "./services/pdf";
 
 // ── Helpers ────────────────────────────────────────────────────────
 function pctEtapa(etapa) {
@@ -577,6 +576,7 @@ function ModalFirma({ etapa, obraInfo, onConfirm, onClose }) {
       // 2 — Generar PDF, descargar localmente y subir a file.io
       let pdfUrl = "";
       try {
+        const { generarComprobante } = await import("./services/pdf");
         const pdf = await generarComprobante({
           obraNombre: obraInfo.nombre,
           etapaNombre: etapa.nombre,
@@ -1049,6 +1049,7 @@ function VistaStock({ obras, onOpenSidebar }) {
     if (!obraActiva) return;
     setPdfLoading(true);
     try {
+      const { generarReporteStock } = await import("./services/pdf");
       const pdf = await generarReporteStock({
         obraInfo: obraActiva.obraInfo || {},
         stock: obraActiva.stock || [],
@@ -2274,6 +2275,7 @@ export default function App() {
   async function descargarReporte() {
     setReportLoading(true);
     try {
+      const { generarReporteObra } = await import("./services/pdf");
       const pdf = await generarReporteObra({ etapas, obraInfo, rubros: RUBROS });
       const nombre = `Reporte_${obraInfo.nombre || "Obra"}`.replace(/\s+/g, "_");
       pdf.save(`${nombre}.pdf`);
