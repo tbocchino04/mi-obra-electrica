@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Zap, User, MapPin, Cloud, Loader2, PenLine, FileCheck,
+  Zap, User, MapPin, Cloud, Loader2, FileCheck,
   ArrowLeft, Sun, Moon, Plus, X, ChevronDown,
   Share2, MoreHorizontal, FileDown, Users, Check,
-  Camera, Trash2, AlertCircle, MessageSquare,
+  Camera, Trash2, AlertCircle, MessageSquare, Clock,
 } from "lucide-react";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
@@ -19,7 +19,6 @@ import HomeView from "./components/HomeView";
 import VistaCliente from "./components/VistaCliente";
 import VistaPublica from "./components/VistaPublica";
 import VistaSocio from "./components/VistaSocio";
-import ModalFirma from "./components/ModalFirma";
 import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpers";
 import { compressImage, validateImage } from "./utils/imageUtils";
 
@@ -170,7 +169,6 @@ export default function App() {
   const [rubroActivo,   setRubroActivo]   = useState(null);
   const [modalRubro,    setModalRubro]    = useState(false);
   const [menuCompartir, setMenuCompartir] = useState(false);
-  const [modalFirmaEtapa, setModalFirmaEtapa] = useState(null);
   const fileRef        = useRef();
   const saveTimer      = useRef();
   const unsubRef       = useRef();
@@ -255,10 +253,13 @@ export default function App() {
     : etapas.filter(e => getRubroDeEtapa(e) === rubroActivo);
 
   function updateItem(etapaId, itemId, changes) {
+    const enriched = "estado" in changes
+      ? { ...changes, ultimoCambio: { autor: "admin", timestamp: Date.now() } }
+      : changes;
     setEtapas(prev => prev.map(e => e.id !== etapaId ? e : {
-      ...e, items: e.items.map(i => i.id !== itemId ? i : { ...i, ...changes })
+      ...e, items: e.items.map(i => i.id !== itemId ? i : { ...i, ...enriched })
     }));
-    if (modalItem?.item?.id === itemId) setModalItem(prev => ({ ...prev, item: { ...prev.item, ...changes } }));
+    if (modalItem?.item?.id === itemId) setModalItem(prev => ({ ...prev, item: { ...prev.item, ...enriched } }));
   }
 
   function updateEtapa(etapaId, changes) {
@@ -783,12 +784,6 @@ export default function App() {
                     </div>
 
                     <div className="mt-3">
-                      {ep === 100 && !etapa.firma && (
-                        <button onClick={() => setModalFirmaEtapa(etapa)}
-                          className="w-full py-2.5 px-3 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors">
-                          <PenLine size={13} /> Firmar conformidad del cliente
-                        </button>
-                      )}
                       {etapa.firma && (
                         <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
                           <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
@@ -878,6 +873,19 @@ export default function App() {
                   );
                 })}
               </div>
+              {modalItem.item.ultimoCambio && (
+                <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-2 flex items-center gap-1">
+                  <Clock size={9} />
+                  Último cambio: {modalItem.item.ultimoCambio.autor === "admin"
+                    ? "Admin"
+                    : (RUBROS.find(r => r.id === modalItem.item.ultimoCambio.rubroId)?.label ?? "Socio")} ·{" "}
+                  {new Date(modalItem.item.ultimoCambio.timestamp).toLocaleString("es-AR", {
+                    timeZone: "America/Argentina/Buenos_Aires",
+                    day: "2-digit", month: "2-digit", year: "2-digit",
+                    hour: "2-digit", minute: "2-digit",
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="mb-5">
@@ -948,15 +956,6 @@ export default function App() {
           onConfirm={() => { deleteItem(confirmItem.etapaId, confirmItem.itemId); setConfirmItem(null); }} />
       )}
 
-      {modalFirmaEtapa && (
-        <ModalFirma
-          etapa={modalFirmaEtapa}
-          obraInfo={obraInfo}
-          onConfirm={async data => {
-            updateEtapa(modalFirmaEtapa.id, { firma: { ...data, timestamp: Date.now() } });
-          }}
-          onClose={() => setModalFirmaEtapa(null)} />
-      )}
     </div>
     </>
   );

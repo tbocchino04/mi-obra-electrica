@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Zap, User, MapPin, MessageSquare, ImageIcon, Camera,
-  Pencil, Check, X, ChevronDown, FileCheck, Loader2, Users, Sun, Moon, AlertCircle,
+  Pencil, Check, X, ChevronDown, FileCheck, Loader2, Users, Sun, Moon, AlertCircle, Clock,
 } from "lucide-react";
 import { escucharObraPorSocioToken, guardarObra } from "../firebase";
 import { ESTADO_CONFIG, RUBROS } from "../constants/data";
@@ -39,16 +39,20 @@ export default function VistaSocio({ token }) {
 
   async function updateItemSocio(etapaId, itemId, changes) {
     if (!obra) return;
+    const rId = Object.entries(obra.socioTokensByRubro || {}).find(([, t]) => t === token)?.[0] ?? null;
+    const enriched = "estado" in changes
+      ? { ...changes, ultimoCambio: { autor: "socio", rubroId: rId, timestamp: Date.now() } }
+      : changes;
     const newEtapas = (obra.etapas || []).map(e =>
       e.id === etapaId
-        ? { ...e, items: (e.items || []).map(i => i.id === itemId ? { ...i, ...changes } : i) }
+        ? { ...e, items: (e.items || []).map(i => i.id === itemId ? { ...i, ...enriched } : i) }
         : e
     );
     setSaving(true);
     try {
       await guardarObra(obra.id, { etapas: newEtapas });
       setSaveError(false);
-      setModalItem(prev => prev ? { ...prev, item: { ...prev.item, ...changes } } : null);
+      setModalItem(prev => prev ? { ...prev, item: { ...prev.item, ...enriched } } : null);
     } catch (err) {
       console.error("Error actualizando ítem socio:", err);
       setSaveError(true);
@@ -199,6 +203,19 @@ export default function VistaSocio({ token }) {
                           <div className={`text-[13px] leading-snug ${done ? "line-through text-ink-400 dark:text-ink-500" : "text-ink dark:text-ink-100"}`}>
                             {item.tarea}
                           </div>
+                          {item.ultimoCambio && (
+                            <div className="flex items-center gap-1 text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">
+                              <Clock size={9} />
+                              {item.ultimoCambio.autor === "admin"
+                                ? "Admin"
+                                : (RUBROS.find(r => r.id === item.ultimoCambio.rubroId)?.label ?? "Socio")} ·{" "}
+                              {new Date(item.ultimoCambio.timestamp).toLocaleString("es-AR", {
+                                timeZone: "America/Argentina/Buenos_Aires",
+                                day: "2-digit", month: "2-digit",
+                                hour: "2-digit", minute: "2-digit",
+                              })}
+                            </div>
+                          )}
                           {item.comentario && (
                             <div className="flex items-start gap-1 text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
                               <MessageSquare size={10} className="mt-0.5 flex-shrink-0" />

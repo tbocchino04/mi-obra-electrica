@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /verificationTokens/{token} {
+      allow read, delete: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /obras/{obraId} {
+
+      // Lectura pública: los IDs de Firestore son 20 chars alfanuméricos (no adivinables).
+      // Los tokens en la URL agregan una capa adicional de obscuridad.
+      allow read: if true;
+
+      // Solo el dueño puede eliminar
+      allow delete: if esOwner();
+
+      // Crear obra: requiere auth y uid propio
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+
+      // Actualizar: dueño sin restricciones; token-user solo puede tocar etapas
+      allow update: if esOwner() || camposCoreIntactos();
+
+      function esOwner() {
+        return request.auth != null
+            && resource.data.uid == request.auth.uid;
+      }
+
+      function camposCoreIntactos() {
+        return request.resource.data.uid              == resource.data.uid
+            && request.resource.data.clienteToken     == resource.data.clienteToken
+            && request.resource.data.socioToken       == resource.data.get('socioToken', null)
+            && request.resource.data.socioTokensByRubro == resource.data.get('socioTokensByRubro', {})
+            && request.resource.data.socioTokensArray == resource.data.get('socioTokensArray', [])
+            && request.resource.data.obraInfo         == resource.data.obraInfo;
+      }
+    }
+  }
+}
