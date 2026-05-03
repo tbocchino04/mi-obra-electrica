@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Sun, Moon, ArrowLeft, User, MapPin, Zap, FileCheck, Check, ChevronRight, PenLine } from "lucide-react";
+import { Sun, Moon, ArrowLeft, User, MapPin, FileCheck, Check, ChevronRight, PenLine } from "lucide-react";
+import AvanzaLogo from "./AvanzaLogo";
 import { guardarObra } from "../firebase";
 import { RUBROS, ESTADO_CONFIG } from "../constants/data";
 import { useTheme } from "../hooks/useTheme";
@@ -137,7 +138,7 @@ export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = f
         <div className="flex justify-between items-start">
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-1.5 mb-1.5">
-              <Zap size={13} className="text-violet-600 dark:text-violet-400" />
+              <AvanzaLogo size={13} className="text-violet-600 dark:text-violet-400" />
               <Label>AVANZA · CLIENTE</Label>
             </div>
             <div className="text-[22px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-snug">{obraInfo.nombre}</div>

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Zap, User, MapPin, MessageSquare, ImageIcon, Camera,
+  User, MapPin, MessageSquare, ImageIcon, Camera,
   Pencil, Check, X, ChevronDown, FileCheck, Loader2, Users, Sun, Moon, AlertCircle, Clock,
 } from "lucide-react";
 import { escucharObraPorSocioToken, guardarObra } from "../firebase";
 import { ESTADO_CONFIG, RUBROS } from "../constants/data";
 import { useTheme } from "../hooks/useTheme";
 import { Spinner, Label, SheetHandle, Accordion } from "./ui";
+import AvanzaLogo from "./AvanzaLogo";
 import { pctEtapa, progressStroke } from "../utils/helpers";
 import { compressImage, validateImage } from "../utils/imageUtils";
 
@@ -115,7 +116,7 @@ export default function VistaSocio({ token }) {
         </div>
 
         <div className="flex items-center gap-1.5 mb-1">
-          <Zap size={12} className="text-violet-600 dark:text-violet-400" />
+          <AvanzaLogo size={12} className="text-violet-600 dark:text-violet-400" />
           <Label>AVANZA</Label>
         </div>
         <div className="text-[22px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-snug mb-1">{obraInfo.nombre}</div>

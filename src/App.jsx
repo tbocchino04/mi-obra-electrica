@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  Zap, User, MapPin, Cloud, Loader2, FileCheck,
+  User, MapPin, Cloud, Loader2, FileCheck,
   ArrowLeft, Sun, Moon, Plus, X, ChevronDown,
   Share2, MoreHorizontal, FileDown, Users, Check,
   Camera, Trash2, AlertCircle, MessageSquare, Clock,
@@ -21,6 +21,7 @@ import VistaPublica from "./components/VistaPublica";
 import VistaSocio from "./components/VistaSocio";
 import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpers";
 import { compressImage, validateImage } from "./utils/imageUtils";
+import AvanzaLogo from "./components/AvanzaLogo";
 
 const clienteToken = new URLSearchParams(window.location.search).get("c");
 const socioToken   = new URLSearchParams(window.location.search).get("s");
@@ -54,7 +55,7 @@ function PantallaConfirmarEmail() {
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink flex flex-col items-center justify-center px-5 py-6 gap-5">
       <div className="bg-white dark:bg-ink-900 rounded-3xl p-10 w-full max-w-sm border border-ink-200 dark:border-ink-700 text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 bg-violet-100 dark:bg-violet-900/40 rounded-xl mb-5">
-          <Zap size={20} className="text-violet-600 dark:text-violet-400" />
+          <AvanzaLogo size={22} className="text-violet-600 dark:text-violet-400" />
         </div>
         {estado === "verificando" && <>
           <div className="font-bold text-[20px] text-ink dark:text-ink-50 tracking-tight mb-2">Verificando...</div>
@@ -105,7 +106,7 @@ function PantallaVerificacion({ onReenviar }) {
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink flex flex-col items-center justify-center px-5 py-6 gap-5">
       <div className="bg-white dark:bg-ink-900 rounded-3xl p-10 w-full max-w-sm border border-ink-200 dark:border-ink-700 text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 bg-violet-100 dark:bg-violet-900/40 rounded-xl mb-5">
-          <Zap size={20} className="text-violet-600 dark:text-violet-400" />
+          <AvanzaLogo size={22} className="text-violet-600 dark:text-violet-400" />
         </div>
         <div className="font-bold text-[20px] text-ink dark:text-ink-50 tracking-tight mb-2">Verificá tu email</div>
         <div className="text-sm text-ink-500 dark:text-ink-400 leading-relaxed mb-6">

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Building2, Plus, User, MapPin, Zap, Trash2, Menu, Search, X } from "lucide-react";
+import { Building2, Plus, User, MapPin, Trash2, Menu, Search, X } from "lucide-react";
+import AvanzaLogo from "./AvanzaLogo";
 import { crearObra } from "../firebase";
 import { ETAPAS_DEFAULT, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "../constants/data";
 import { Label, SheetHandle, ModalConfirm } from "./ui";
@@ -50,7 +51,7 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
           </button>
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <Zap size={12} className="text-violet-600 dark:text-violet-400" />
+              <AvanzaLogo size={12} className="text-violet-600 dark:text-violet-400" />
               <Label>AVANZA</Label>
             </div>
             <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Mis Obras</div>

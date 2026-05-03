@@ -1,4 +1,5 @@
-import { Wallet, Menu, User, FileCheck, Zap } from "lucide-react";
+import { Wallet, Menu, User, FileCheck } from "lucide-react";
+import AvanzaLogo from "./AvanzaLogo";
 import { RUBROS } from "../constants/data";
 import { Label } from "./ui";
 import { calcFinanciero, fmtNum, fmtMonto } from "../utils/helpers";
@@ -18,7 +19,7 @@ export default function VistaFinanciero({ obras, onOpenSidebar }) {
           </button>
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
-              <Zap size={12} className="text-violet-600 dark:text-violet-400" />
+              <AvanzaLogo size={12} className="text-violet-600 dark:text-violet-400" />
               <Label>AVANZA</Label>
             </div>
             <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Financiero</div>
