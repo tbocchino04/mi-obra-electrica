@@ -7,7 +7,7 @@ import { escucharObraPorSocioToken, guardarObra } from "../firebase";
 import { ESTADO_CONFIG, RUBROS } from "../constants/data";
 import { useTheme } from "../hooks/useTheme";
 import { Spinner, Label, SheetHandle, Accordion } from "./ui";
-import { pctEtapa, fmtMonto, progressStroke } from "../utils/helpers";
+import { pctEtapa, progressStroke } from "../utils/helpers";
 import { compressImage, validateImage } from "../utils/imageUtils";
 
 export default function VistaSocio({ token }) {
@@ -153,7 +153,7 @@ export default function VistaSocio({ token }) {
         {etapas.map(etapa => {
           const open    = !!expandidas[etapa.id];
           const ep      = pctEtapa(etapa);
-          const mf      = fmtMonto(etapa);
+
           const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
           return (
             <div key={etapa.id}
@@ -168,7 +168,6 @@ export default function VistaSocio({ token }) {
                   </div>
                   <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
                     {(etapa.items || []).filter(i => i.estado === "completado").length}/{(etapa.items || []).length} completados
-                    {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
