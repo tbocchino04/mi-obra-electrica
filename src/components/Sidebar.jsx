@@ -1,6 +1,7 @@
 import { Building2, Package, Wallet, Sun, Moon, LogOut } from "lucide-react";
 import { logout } from "../firebase";
 import { useTheme } from "../hooks/useTheme";
+import AvanzaLogo from "./AvanzaLogo";
 
 export default function Sidebar({ open, onClose, activeView, onSetView }) {
   const { dark, toggle } = useTheme();
@@ -14,12 +15,11 @@ export default function Sidebar({ open, onClose, activeView, onSetView }) {
       <div onClick={onClose}
         className={`fixed inset-0 bg-ink/60 z-[80] transition-opacity duration-300 md:hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`} />
       <div className={`fixed top-0 left-0 h-screen w-64 bg-white dark:bg-ink-900 z-[90] flex flex-col border-r border-ink-200 dark:border-ink-700 transition-transform duration-300 ease-out md:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="border-b border-ink-100 dark:border-ink-800">
-          <img
-            src={dark ? "/logo-full-dark.png" : "/logo-full.png"}
-            alt="AVANZA"
-            className="w-full h-auto block"
-          />
+        <div className="px-5 pt-10 pb-6 border-b border-ink-100 dark:border-ink-800">
+          {dark
+            ? <AvanzaLogo size={36} className="text-violet-400" />
+            : <img src="/logo-app.png" alt="AVANZA" className="h-9 w-auto" />
+          }
         </div>
         <nav className="flex-1 px-3 py-4">
           {nav.map(({ key, icon: Icon, label }) => (
