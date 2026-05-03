@@ -52,7 +52,7 @@ export default function AuthScreen() {
           <div className="inline-flex items-center justify-center w-11 h-11 bg-violet-100 dark:bg-violet-900/40 rounded-xl mb-4">
             <Zap size={19} className="text-violet-600 dark:text-violet-400" />
           </div>
-          <div className="text-[11px] font-bold tracking-[0.2em] uppercase text-violet-600 dark:text-violet-400 mb-1.5">GRUPO V&B</div>
+          <div className="text-[11px] font-bold tracking-[0.2em] uppercase text-violet-600 dark:text-violet-400 mb-1.5">AVANZA</div>
           <div className="font-bold text-[22px] text-ink dark:text-ink-50 tracking-[-0.04em] leading-tight">
             {mode === "login" ? "Bienvenido" : "Crear cuenta"}
           </div>

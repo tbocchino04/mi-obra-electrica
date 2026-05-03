@@ -19,7 +19,7 @@ export default function VistaFinanciero({ obras, onOpenSidebar }) {
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
               <Zap size={12} className="text-violet-600 dark:text-violet-400" />
-              <Label>GRUPO V&B</Label>
+              <Label>AVANZA</Label>
             </div>
             <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Financiero</div>
           </div>

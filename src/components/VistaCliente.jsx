@@ -138,7 +138,7 @@ export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = f
           <div className="flex-1 min-w-0 mr-4">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Zap size={13} className="text-violet-600 dark:text-violet-400" />
-              <Label>GRUPO V&B · CLIENTE</Label>
+              <Label>AVANZA · CLIENTE</Label>
             </div>
             <div className="text-[22px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-snug">{obraInfo.nombre}</div>
             {obraInfo.cliente && (

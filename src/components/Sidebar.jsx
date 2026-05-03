@@ -17,9 +17,9 @@ export default function Sidebar({ open, onClose, activeView, onSetView }) {
         <div className="px-5 pt-10 pb-6 border-b border-ink-100 dark:border-ink-800">
           <div className="flex items-center gap-2 mb-1">
             <Zap size={14} className="text-violet-600 dark:text-violet-400" />
-            <span className="text-[11px] font-bold tracking-[0.15em] uppercase text-violet-600 dark:text-violet-400">GRUPO V&B</span>
+            <span className="text-[11px] font-bold tracking-[0.15em] uppercase text-violet-600 dark:text-violet-400">AVANZA</span>
           </div>
-          <div className="text-[24px] font-bold text-ink dark:text-ink-50 tracking-[-0.03em]">Mi Obra</div>
+          <div className="text-[24px] font-bold text-ink dark:text-ink-50 tracking-[-0.03em]">AVANZA</div>
         </div>
         <nav className="flex-1 px-3 py-4">
           {nav.map(({ key, icon: Icon, label }) => (

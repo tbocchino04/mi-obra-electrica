@@ -1,12 +1,8 @@
 import emailjs from "@emailjs/browser";
 
-// Completar con tus datos de EmailJS:
-// emailjs.com → Email Services → Service ID
-// emailjs.com → Email Templates → Template ID
-// emailjs.com → Account → API Keys → Public Key
-const SERVICE_ID  = "service_n9hy9x9";
-const TEMPLATE_ID = "template_0mtlk3j";
-const PUBLIC_KEY  = "Hb6zEV3n3vauw42T6";
+const SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+const PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
 export async function enviarComprobante({ obraNombre, etapaNombre, monto, firmante, fecha, clienteEmail, adminEmail, pdfUrl = "" }) {
   const params = { obra_nombre: obraNombre, etapa_nombre: etapaNombre, monto, firmante, fecha, pdf_url: pdfUrl };
