@@ -3,7 +3,7 @@ import {
   Zap, User, MapPin, Cloud, Loader2, PenLine, FileCheck,
   ArrowLeft, Sun, Moon, Plus, X, ChevronDown,
   Share2, MoreHorizontal, FileDown, Users, Check,
-  Camera, Trash2,
+  Camera, Trash2, AlertCircle, MessageSquare,
 } from "lucide-react";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
@@ -21,7 +21,7 @@ import VistaPublica from "./components/VistaPublica";
 import VistaSocio from "./components/VistaSocio";
 import ModalFirma from "./components/ModalFirma";
 import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpers";
-import { compressImage } from "./utils/imageUtils";
+import { compressImage, validateImage } from "./utils/imageUtils";
 
 const clienteToken = new URLSearchParams(window.location.search).get("c");
 const socioToken   = new URLSearchParams(window.location.search).get("s");
@@ -161,6 +161,8 @@ export default function App() {
   const [saving,        setSaving]        = useState(false);
   const [cloudStatus,   setCloudStatus]   = useState("");
   const [fotoUploading, setFotoUploading] = useState(false);
+  const [fotoError,     setFotoError]     = useState("");
+  const [saveError,     setSaveError]     = useState(false);
   const [confirmItem,   setConfirmItem]   = useState(null);
   const [copied,           setCopied]           = useState(false);
   const [copiedSocioRubro, setCopiedSocioRubro] = useState(null);
@@ -223,7 +225,11 @@ export default function App() {
       try {
         await guardarObra(obraActiva.id, { etapas, obraInfo });
         setCloudStatus("Guardado");
-      } catch { setCloudStatus("Error"); }
+        setSaveError(false);
+      } catch {
+        setCloudStatus("Error al guardar");
+        setSaveError(true);
+      }
       setSaving(false);
     }, 800);
   }, [etapas, obraInfo]);
@@ -357,6 +363,15 @@ export default function App() {
 
   async function handleFoto(e, etapaId, itemId) {
     const file = e.target.files[0]; if (!file) return;
+    e.target.value = "";
+    try {
+      validateImage(file);
+    } catch (err) {
+      setFotoError(err.message);
+      setTimeout(() => setFotoError(""), 5000);
+      return;
+    }
+    setFotoError("");
     setFotoUploading(true);
     try {
       const dataUrl = await new Promise(res => {
@@ -368,9 +383,24 @@ export default function App() {
       updateItem(etapaId, itemId, { foto: compressed });
     } catch (err) {
       console.error("Error subiendo foto:", err);
+      setFotoError("No se pudo subir la foto. Intentá de nuevo.");
+      setTimeout(() => setFotoError(""), 5000);
     } finally {
       setFotoUploading(false);
     }
+  }
+
+  async function reintentarGuardado() {
+    if (!obraActiva) return;
+    setSaving(true); setSaveError(false);
+    try {
+      await guardarObra(obraActiva.id, { etapas, obraInfo });
+      setCloudStatus("Guardado");
+    } catch {
+      setCloudStatus("Error al guardar");
+      setSaveError(true);
+    }
+    setSaving(false);
   }
 
   if (!obraActiva) return (
@@ -386,7 +416,32 @@ export default function App() {
     <VistaCliente etapas={etapas} obraInfo={obraInfo} onVolver={() => setVistaCliente(false)} />
   );
 
+  function fmtComentario(c) {
+    if (!c) return "";
+    return typeof c === "string" ? c : (c.texto || "");
+  }
+  function fmtComentarioMeta(c) {
+    if (!c || typeof c === "string" || !c.timestamp) return null;
+    const fecha = new Date(c.timestamp).toLocaleString("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      day: "2-digit", month: "2-digit", year: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    });
+    return `${fecha} · ${c.autor === "socio" ? "Socio" : "Admin"}`;
+  }
+
   return (
+    <>
+    {saveError && (
+      <div className="fixed top-0 left-0 right-0 z-[9999] bg-red-500 text-white text-sm font-semibold flex items-center justify-center gap-3 py-3 px-4 shadow-lg">
+        <AlertCircle size={14} className="flex-shrink-0" />
+        No se pudo guardar. Revisá tu conexión.
+        <button onClick={reintentarGuardado}
+          className="underline cursor-pointer bg-transparent border-0 text-white text-sm font-bold">
+          Reintentar
+        </button>
+      </div>
+    )}
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16 md:pb-0 md:flex md:h-screen">
 
       {/* Panel izquierdo */}
@@ -461,6 +516,24 @@ export default function App() {
                         {copied ? "¡Link copiado!" : "Link para cliente"}
                       </div>
                       <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Solo lectura</div>
+                    </div>
+                  </button>
+
+                  <button onClick={() => {
+                    const token = obraActiva.clienteToken;
+                    if (!token) return;
+                    const url  = `${window.location.origin}${window.location.pathname}?c=${token}`;
+                    const text = `Seguimiento de obra: *${obraInfo.nombre || ""}*\n${url}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                    setMenuCompartir(false);
+                  }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
+                    <div className="w-7 h-7 rounded-xl bg-[#25d36620] flex items-center justify-center flex-shrink-0">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    </div>
+                    <div>
+                      <div className="text-[12px] font-semibold leading-none text-ink dark:text-ink-50">Enviar por WhatsApp</div>
+                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Link del cliente</div>
                     </div>
                   </button>
 
@@ -809,10 +882,21 @@ export default function App() {
 
             <div className="mb-5">
               <Label>Comentario</Label>
-              <textarea value={modalItem.item.comentario}
-                onChange={e => updateItem(modalItem.etapaId, modalItem.item.id, { comentario: e.target.value })}
+              <textarea
+                value={fmtComentario(modalItem.item.comentario)}
+                onChange={e => updateItem(modalItem.etapaId, modalItem.item.id, {
+                  comentario: e.target.value
+                    ? { texto: e.target.value, timestamp: Date.now(), autor: "admin" }
+                    : null,
+                })}
                 placeholder="Nota u observación..."
                 className="w-full px-3.5 py-3 rounded-xl border border-ink-200 dark:border-ink-700 text-sm resize-none min-h-[80px] bg-ink-50 dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none focus:border-violet-500 transition-colors mt-2 leading-relaxed" />
+              {fmtComentarioMeta(modalItem.item.comentario) && (
+                <div className="flex items-center gap-1 text-[10px] text-ink-400 dark:text-ink-500 mt-1">
+                  <MessageSquare size={9} />
+                  {fmtComentarioMeta(modalItem.item.comentario)}
+                </div>
+              )}
             </div>
 
             <div className="mb-6">
@@ -840,6 +924,11 @@ export default function App() {
                   </button>
                 )}
               </div>
+              {fotoError && (
+                <div className="mt-2 text-xs text-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg px-3 py-2 flex items-center gap-1.5">
+                  <AlertCircle size={11} /> {fotoError}
+                </div>
+              )}
               <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
                 onChange={e => handleFoto(e, modalItem.etapaId, modalItem.item.id)} />
             </div>
@@ -869,5 +958,6 @@ export default function App() {
           onClose={() => setModalFirmaEtapa(null)} />
       )}
     </div>
+    </>
   );
 }
