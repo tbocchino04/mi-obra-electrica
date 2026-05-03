@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Plus, User, MapPin, Zap, Trash2, Menu } from "lucide-react";
+import { Building2, Plus, User, MapPin, Zap, Trash2, Menu, Search, X } from "lucide-react";
 import { crearObra } from "../firebase";
 import { ETAPAS_DEFAULT, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "../constants/data";
 import { Label, SheetHandle, ModalConfirm } from "./ui";
@@ -16,6 +16,7 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
   const [creando,      setCreando]      = useState(false);
   const [modal,        setModal]        = useState(false);
   const [confirmEl,    setConfirmEl]    = useState(null);
+  const [busqueda,     setBusqueda]     = useState("");
 
   async function crear() {
     if (!nombre.trim()) return;
@@ -58,7 +59,27 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
         </div>
       </div>
 
-      <div className="px-3.5 md:px-8 pt-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
+      {obras.length > 0 && (
+        <div className="px-3.5 md:px-8 pt-4 pb-1">
+          <div className="relative">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400 dark:text-ink-500 pointer-events-none" />
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por obra, cliente o dirección..."
+              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 text-sm text-ink dark:text-ink-50 placeholder-ink-400 outline-none focus:border-violet-500 transition-colors"
+            />
+            {busqueda && (
+              <button onClick={() => setBusqueda("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 bg-transparent border-0 cursor-pointer p-0.5">
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="px-3.5 md:px-8 pt-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
         {obras.length === 0 && (
           <div className="text-center py-16 px-5">
             <Building2 size={44} className="text-ink-200 dark:text-ink-700 mx-auto mb-4" />
@@ -67,7 +88,23 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
           </div>
         )}
 
-        {obras.map(obra => {
+        {(() => {
+          const q = busqueda.toLowerCase().trim();
+          const filtradas = q
+            ? obras.filter(o =>
+                (o.obraInfo?.nombre    || "").toLowerCase().includes(q) ||
+                (o.obraInfo?.cliente   || "").toLowerCase().includes(q) ||
+                (o.obraInfo?.direccion || "").toLowerCase().includes(q)
+              )
+            : obras;
+          if (obras.length > 0 && filtradas.length === 0) return (
+            <div className="text-center py-12 px-5 col-span-3">
+              <Search size={32} className="text-ink-200 dark:text-ink-700 mx-auto mb-3" />
+              <div className="font-bold text-sm text-ink dark:text-ink-50 mb-1">Sin resultados</div>
+              <div className="text-xs text-ink-400 dark:text-ink-500">Probá con otro nombre o cliente.</div>
+            </div>
+          );
+          return filtradas.map(obra => {
           const total  = (obra.etapas || []).flatMap(e => e.items || []).length;
           const comp   = (obra.etapas || []).flatMap(e => e.items || []).filter(i => i.estado === "completado").length;
           const pct    = total ? Math.round(comp / total * 100) : 0;
@@ -128,7 +165,8 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
               </div>
             </div>
           );
-        })}
+        });
+        })()}
       </div>
 
       <div className="fixed bottom-6 right-5">
