@@ -2,9 +2,9 @@ import { useRef, useEffect } from "react";
 import { Trash2, Loader2 } from "lucide-react";
 import gsap from "gsap";
 
-export function Label({ children }) {
+export function Label({ children, className = "" }) {
   return (
-    <span className="text-[10px] font-bold tracking-[0.12em] uppercase text-ink-400 dark:text-ink-400">
+    <span className={`text-[10px] font-bold tracking-[0.12em] uppercase text-ink-400 dark:text-ink-400 ${className}`}>
       {children}
     </span>
   );

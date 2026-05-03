@@ -1,3 +1,9 @@
+.logo-word {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 900 !important;
+  letter-spacing: -1px !important;
+}
+
 .counter {
   font-size: 16px;
   padding: 5px 10px;

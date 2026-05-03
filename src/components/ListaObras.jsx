@@ -52,7 +52,7 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <AvanzaLogo size={12} className="text-violet-600 dark:text-violet-400" />
-              <Label>AVANZA</Label>
+              <Label className="logo-word">AVANZA</Label>
             </div>
             <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Mis Obras</div>
             <div className="text-sm text-ink-500 dark:text-ink-400 mt-1">{obras.length} proyecto{obras.length !== 1 ? "s" : ""} · {userNombre}</div>
