@@ -169,9 +169,10 @@ export default function App() {
   const [modalRubro,    setModalRubro]    = useState(false);
   const [menuCompartir, setMenuCompartir] = useState(false);
   const [modalFirmaEtapa, setModalFirmaEtapa] = useState(null);
-  const fileRef   = useRef();
-  const saveTimer = useRef();
-  const unsubRef  = useRef();
+  const fileRef        = useRef();
+  const saveTimer      = useRef();
+  const unsubRef       = useRef();
+  const justLoadedRef  = useRef(false);
 
   useEffect(() => {
     return onAuth(async u => {
@@ -195,8 +196,16 @@ export default function App() {
 
   useEffect(() => {
     if (unsubRef.current) unsubRef.current();
-    if (!obraActiva) return;
+    if (!obraActiva) {
+      setEtapas([]);
+      setObraInfo({ nombre: "", cliente: "", direccion: "", clienteEmail: "", adminEmail: "" });
+      return;
+    }
+    justLoadedRef.current = true;
+    if (obraActiva.etapas)   setEtapas(obraActiva.etapas);
+    if (obraActiva.obraInfo) setObraInfo(obraActiva.obraInfo);
     unsubRef.current = escucharObra(obraActiva.id, data => {
+      justLoadedRef.current = true;
       if (data?.etapas)   setEtapas(data.etapas);
       if (data?.obraInfo) setObraInfo(data.obraInfo);
       setCloudStatus("Sincronizado");
@@ -205,6 +214,7 @@ export default function App() {
   }, [obraActiva?.id]);
 
   useEffect(() => {
+    if (justLoadedRef.current) { justLoadedRef.current = false; return; }
     if (!obraActiva || !etapas.length) return;
     clearTimeout(saveTimer.current);
     setSaving(true);
