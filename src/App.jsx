@@ -433,7 +433,7 @@ export default function App() {
   );
 
   if (vistaCliente) return (
-    <VistaCliente etapas={etapas} obraInfo={obraInfo} onVolver={() => setVistaCliente(false)} />
+    <VistaCliente etapas={etapas} obraInfo={obraInfo} onVolver={() => setVistaCliente(false)} rubrosConfig={rubrosConfig} />
   );
 
   function fmtComentario(c) {
