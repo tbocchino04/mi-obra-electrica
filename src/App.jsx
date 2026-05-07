@@ -450,6 +450,8 @@ export default function App() {
     return `${fecha} · ${c.autor === "socio" ? "Socio" : "Admin"}`;
   }
 
+  const C = 502.655;
+
   return (
     <>
     {saveError && (
@@ -462,125 +464,124 @@ export default function App() {
         </button>
       </div>
     )}
-    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-16 md:pb-0 md:flex md:h-screen">
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24">
 
-      {/* Panel izquierdo */}
-      <div className="bg-white dark:bg-ink-900 border-b md:border-b-0 md:border-r border-ink-200 dark:border-ink-700 px-5 pt-5 pb-4 md:w-80 lg:w-96 md:flex-shrink-0 md:h-full md:overflow-y-auto md:pb-8">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setObraActiva(null)}
-            className="bg-transparent border-0 text-ink-400 dark:text-ink-500 cursor-pointer flex items-center gap-1 text-xs font-medium p-0">
-            <ArrowLeft size={13} /> Obras
+      {/* Header */}
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+        <button onClick={() => setObraActiva(null)}
+          className="bg-transparent border-0 text-ink-400 dark:text-ink-500 cursor-pointer flex items-center gap-1 text-xs font-medium p-0">
+          <ArrowLeft size={13} /> Obras
+        </button>
+        <div className="flex gap-1.5 items-center">
+          {cloudStatus && (
+            <span className="text-[11px] text-ink-400 dark:text-ink-500 flex items-center gap-1 mr-1">
+              {saving ? <Loader2 size={11} className="animate-spin" /> : <Cloud size={11} />}
+              {saving ? "" : cloudStatus}
+            </span>
+          )}
+          <button onClick={() => setVistaCliente(true)}
+            className="border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 rounded-full px-3 py-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-400 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors">
+            Vista cliente
           </button>
-          <div className="flex gap-1.5 items-center">
-            {cloudStatus && (
-              <span className="text-[11px] text-ink-400 dark:text-ink-500 flex items-center gap-1 mr-1">
-                {saving ? <Loader2 size={11} className="animate-spin" /> : <Cloud size={11} />}
-                {saving ? "" : cloudStatus}
-              </span>
-            )}
-            <button onClick={() => setVistaCliente(true)}
-              className="border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 rounded-full px-3 py-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-400 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors">
-              Vista cliente
+          {menuCompartir && (
+            <div className="fixed inset-0 z-[65]" onClick={() => setMenuCompartir(false)} />
+          )}
+          <div className="relative z-[70]">
+            <button onClick={() => setMenuCompartir(v => !v)}
+              className={`border rounded-full p-1.5 cursor-pointer transition-colors flex items-center justify-center ${
+                menuCompartir
+                  ? "border-violet-400 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400"
+                  : "border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-700"
+              }`}>
+              <MoreHorizontal size={13} />
             </button>
-
             {menuCompartir && (
-              <div className="fixed inset-0 z-[65]" onClick={() => setMenuCompartir(false)} />
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 shadow-modal overflow-hidden animate-[fadeIn_.15s_ease-out_both]">
+                {(() => {
+                  const rc = RUBROS.find(r => r.id === rubroActivo);
+                  const copiedKey = rubroActivo ?? "general";
+                  const isCopied = copiedSocioRubro === copiedKey;
+                  return (
+                    <button
+                      onClick={() => { copiarLinkSocioRubro(rubroActivo); setTimeout(() => setMenuCompartir(false), 1600); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 border-0 bg-transparent text-left transition-colors hover:bg-ink-50 dark:hover:bg-ink-800 cursor-pointer">
+                      <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
+                        style={{ background: isCopied ? "rgb(237 233 254)" : (rc ? rc.hex + "28" : "#ede9fe") }}>
+                        {isCopied
+                          ? <Check size={12} className="text-violet-600 dark:text-violet-400" />
+                          : <Users size={12} style={{ color: rc ? rc.hex : "#7c5cc9" }} />}
+                      </div>
+                      <div>
+                        <div className={`text-[12px] font-semibold leading-none ${isCopied ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
+                          {isCopied ? "¡Link copiado!" : rc ? `Socio · ${rc.label}` : "Socio · General"}
+                        </div>
+                        <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">
+                          {rc ? "Acceso solo a este rubro" : "Acceso completo a la obra"}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })()}
+
+                <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
+
+                <button onClick={() => { copiarLink(); setTimeout(() => setMenuCompartir(false), 1600); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${copied ? "bg-emerald-100 dark:bg-emerald-950/50" : "bg-ink-100 dark:bg-ink-800"}`}>
+                    {copied ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Share2 size={12} className="text-ink-500 dark:text-ink-400" />}
+                  </div>
+                  <div>
+                    <div className={`text-[12px] font-semibold leading-none ${copied ? "text-emerald-600 dark:text-emerald-400" : "text-ink dark:text-ink-50"}`}>
+                      {copied ? "¡Link copiado!" : "Link para cliente"}
+                    </div>
+                    <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Solo lectura</div>
+                  </div>
+                </button>
+
+                <button onClick={() => {
+                  const token = obraActiva.clienteToken;
+                  if (!token) return;
+                  const url  = `${window.location.origin}${window.location.pathname}?c=${token}`;
+                  const text = `Seguimiento de obra: *${obraInfo.nombre || ""}*\n${url}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                  setMenuCompartir(false);
+                }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
+                  <div className="w-7 h-7 rounded-xl bg-[#25d36620] flex items-center justify-center flex-shrink-0">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  </div>
+                  <div>
+                    <div className="text-[12px] font-semibold leading-none text-ink dark:text-ink-50">Enviar por WhatsApp</div>
+                    <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Link del cliente</div>
+                  </div>
+                </button>
+
+                <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
+
+                <button onClick={() => { descargarReporte(); setMenuCompartir(false); }} disabled={reportLoading}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left disabled:opacity-50">
+                  <div className="w-7 h-7 rounded-xl bg-ink-100 dark:bg-ink-800 flex items-center justify-center flex-shrink-0">
+                    {reportLoading ? <Loader2 size={12} className="animate-spin text-ink-500 dark:text-ink-400" /> : <FileDown size={12} className="text-ink-500 dark:text-ink-400" />}
+                  </div>
+                  <div>
+                    <div className="text-[12px] font-semibold leading-none text-ink dark:text-ink-50">
+                      {reportLoading ? "Generando PDF..." : "Descargar reporte"}
+                    </div>
+                    <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">PDF completo de la obra</div>
+                  </div>
+                </button>
+              </div>
             )}
-            <div className="relative z-[70]">
-              <button onClick={() => setMenuCompartir(v => !v)}
-                className={`border rounded-full p-1.5 cursor-pointer transition-colors flex items-center justify-center ${
-                  menuCompartir
-                    ? "border-violet-400 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400"
-                    : "border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-400 hover:bg-ink-50 dark:hover:bg-ink-700"
-                }`}>
-                <MoreHorizontal size={13} />
-              </button>
-
-              {menuCompartir && (
-                <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 shadow-modal overflow-hidden animate-[fadeIn_.15s_ease-out_both]">
-                  {(() => {
-                    const rc = RUBROS.find(r => r.id === rubroActivo);
-                    const copiedKey = rubroActivo ?? "general";
-                    const isCopied = copiedSocioRubro === copiedKey;
-                    return (
-                      <button
-                        onClick={() => { copiarLinkSocioRubro(rubroActivo); setTimeout(() => setMenuCompartir(false), 1600); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 border-0 bg-transparent text-left transition-colors hover:bg-ink-50 dark:hover:bg-ink-800 cursor-pointer">
-                        <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors"
-                          style={{ background: isCopied ? "rgb(237 233 254)" : (rc ? rc.hex + "28" : "#ede9fe") }}>
-                          {isCopied
-                            ? <Check size={12} className="text-violet-600 dark:text-violet-400" />
-                            : <Users size={12} style={{ color: rc ? rc.hex : "#7c5cc9" }} />}
-                        </div>
-                        <div>
-                          <div className={`text-[12px] font-semibold leading-none ${isCopied ? "text-violet-600 dark:text-violet-400" : "text-ink dark:text-ink-50"}`}>
-                            {isCopied ? "¡Link copiado!" : rc ? `Socio · ${rc.label}` : "Socio · General"}
-                          </div>
-                          <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">
-                            {rc ? "Acceso solo a este rubro" : "Acceso completo a la obra"}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })()}
-
-                  <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
-
-                  <button onClick={() => { copiarLink(); setTimeout(() => setMenuCompartir(false), 1600); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
-                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${copied ? "bg-emerald-100 dark:bg-emerald-950/50" : "bg-ink-100 dark:bg-ink-800"}`}>
-                      {copied ? <Check size={12} className="text-emerald-600 dark:text-emerald-400" /> : <Share2 size={12} className="text-ink-500 dark:text-ink-400" />}
-                    </div>
-                    <div>
-                      <div className={`text-[12px] font-semibold leading-none ${copied ? "text-emerald-600 dark:text-emerald-400" : "text-ink dark:text-ink-50"}`}>
-                        {copied ? "¡Link copiado!" : "Link para cliente"}
-                      </div>
-                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Solo lectura</div>
-                    </div>
-                  </button>
-
-                  <button onClick={() => {
-                    const token = obraActiva.clienteToken;
-                    if (!token) return;
-                    const url  = `${window.location.origin}${window.location.pathname}?c=${token}`;
-                    const text = `Seguimiento de obra: *${obraInfo.nombre || ""}*\n${url}`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
-                    setMenuCompartir(false);
-                  }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left">
-                    <div className="w-7 h-7 rounded-xl bg-[#25d36620] flex items-center justify-center flex-shrink-0">
-                      <svg viewBox="0 0 24 24" width="12" height="12" fill="#25d366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    </div>
-                    <div>
-                      <div className="text-[12px] font-semibold leading-none text-ink dark:text-ink-50">Enviar por WhatsApp</div>
-                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">Link del cliente</div>
-                    </div>
-                  </button>
-
-                  <div className="h-px bg-ink-100 dark:bg-ink-800 mx-3" />
-
-                  <button onClick={() => { descargarReporte(); setMenuCompartir(false); }} disabled={reportLoading}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-ink-50 dark:hover:bg-ink-800 transition-colors border-0 bg-transparent cursor-pointer text-left disabled:opacity-50">
-                    <div className="w-7 h-7 rounded-xl bg-ink-100 dark:bg-ink-800 flex items-center justify-center flex-shrink-0">
-                      {reportLoading ? <Loader2 size={12} className="animate-spin text-ink-500 dark:text-ink-400" /> : <FileDown size={12} className="text-ink-500 dark:text-ink-400" />}
-                    </div>
-                    <div>
-                      <div className="text-[12px] font-semibold leading-none text-ink dark:text-ink-50">
-                        {reportLoading ? "Generando PDF..." : "Descargar reporte"}
-                      </div>
-                      <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">PDF completo de la obra</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-            <button onClick={toggleDark}
-              className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors">
-              {dark ? <Sun size={13} /> : <Moon size={13} />}
-            </button>
           </div>
+          <button onClick={toggleDark}
+            className="border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-800 rounded-full p-1.5 text-ink-500 dark:text-ink-400 cursor-pointer hover:bg-ink-50 dark:hover:bg-ink-700 transition-colors">
+            {dark ? <Sun size={13} /> : <Moon size={13} />}
+          </button>
         </div>
+      </div>
 
+      {/* Obra info */}
+      <div className="px-4 pt-4 pb-4 bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
         {editInfo ? (
           <div>
             {[
@@ -614,247 +615,269 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div className="text-[10px] text-ink-400 dark:text-ink-600 mt-1.5 tracking-widest font-medium md:hidden">TOCA PARA EDITAR</div>
-          </div>
-        )}
-
-        <div className="mt-4">
-          <div className="flex justify-between items-baseline mb-1.5">
-            <Label>Progreso total</Label>
-            <span className={`text-[22px] font-bold tracking-[-0.04em] ${progressColor(pct)}`}>{pct}%</span>
-          </div>
-          <div className="h-0.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${pct}%`, background: pColor }} />
-          </div>
-          <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-1.5 text-right">
-            {completados} de {totalItems} tareas
-          </div>
-        </div>
-
-        {rubrosActivos.length > 1 && (
-          <div className="mt-4 pt-4 border-t border-ink-100 dark:border-ink-800">
-            <Label>Por rubro</Label>
-            <div className="mt-2.5 flex flex-col gap-3">
-              {rubrosActivos.map(rid => {
-                const rc  = RUBROS.find(r => r.id === rid);
-                const lbl = rc?.label || rid;
-                const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
-                const cp  = its.filter(i => i.estado === "completado").length;
-                const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
-                const isActive = rubroActivo === rid;
-
-                const cfg       = rubrosConfig[rid] || {};
-                const hoy       = new Date().toISOString().slice(0, 10);
-                const vencido   = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < hoy && rp < 100;
-                const enTermino = rp === 100 && !!cfg.fechaEstimadaFin;
-                const fin       = fmtFecha(cfg.fechaEstimadaFin);
-
-                return (
-                  <div key={rid}>
-                    <div className="flex items-center justify-between mb-0.5">
-                      <button onClick={() => setRubroActivo(isActive ? null : rid)}
-                        className="text-left cursor-pointer bg-transparent border-0 p-0 flex items-center gap-1 min-w-0">
-                        {vencido && <AlertCircle size={11} className="text-red-500 flex-shrink-0" />}
-                        <span className={`text-[11px] font-semibold transition-colors truncate ${
-                          vencido   ? "text-red-500" :
-                          isActive  ? (rc?.text || "text-violet-600 dark:text-violet-400") :
-                                      "text-ink-500 dark:text-ink-400"
-                        }`}>{lbl}</span>
-                      </button>
-                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
-                        <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
-                        <button onClick={() => setModalFechasRubro(rid)}
-                          className="text-ink-400 dark:text-ink-500 hover:text-violet-600 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 rounded">
-                          <Calendar size={11} />
-                        </button>
-                      </div>
-                    </div>
-                    {fin && (
-                      <div className={`text-[10px] mb-1 ${vencido ? "text-red-400" : "text-ink-400 dark:text-ink-500"}`}>
-                        hasta {fin}
-                      </div>
-                    )}
-                    {enTermino && (
-                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mb-1 flex items-center gap-1">
-                        <Check size={10} /> En término
-                      </div>
-                    )}
-                    <button onClick={() => setRubroActivo(isActive ? null : rid)}
-                      className="w-full cursor-pointer bg-transparent border-0 p-0">
-                      <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${rp}%`, background: rc?.hex || progressStroke(rp) }} />
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         )}
       </div>
 
-      {/* Columna derecha */}
-      <div className="md:flex-1 md:min-w-0 md:overflow-y-auto">
-
-        {rubrosActivos.length > 0 && (
-          <div className="px-3.5 md:px-6 pt-3.5 md:pt-5 pb-1">
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-              <button onClick={() => setRubroActivo(null)}
-                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-[12px] font-semibold border cursor-pointer transition-colors ${
-                  rubroActivo === null
-                    ? "bg-ink dark:bg-ink-50 text-white dark:text-ink border-transparent"
-                    : "bg-white dark:bg-ink-800 text-ink-500 dark:text-ink-400 border-ink-200 dark:border-ink-700 hover:border-ink-400"
-                }`}>
-                General
-              </button>
-              {rubrosActivos.map(rid => {
-                const rc     = RUBROS.find(r => r.id === rid);
-                const lbl    = rc?.label || rid;
-                const active = rubroActivo === rid;
-                return (
-                  <div key={rid} className="flex-shrink-0 flex">
-                    <button onClick={() => setRubroActivo(rid)}
-                      style={active ? { background: rc?.hex, borderColor: rc?.hex, color: "white" } : {}}
-                      className={`px-3.5 py-1.5 rounded-l-full text-[12px] font-semibold border-y border-l cursor-pointer transition-all ${
-                        active
-                          ? "border-transparent"
-                          : `bg-white dark:bg-ink-800 border-ink-200 dark:border-ink-700 ${rc?.text || "text-ink-500 dark:text-ink-400"} hover:border-current`
-                      }`}>
-                      {lbl}
-                    </button>
-                    <button onClick={() => removeRubro(rid)} title="Eliminar rubro"
-                      style={active ? { background: rc?.hex, borderColor: rc?.hex, color: "rgba(255,255,255,0.7)" } : {}}
-                      className={`px-2 py-1.5 rounded-r-full text-[11px] border-y border-r cursor-pointer transition-all ${
-                        active
-                          ? "border-transparent hover:opacity-80"
-                          : "bg-white dark:bg-ink-800 text-ink-300 dark:text-ink-600 border-ink-200 dark:border-ink-700 hover:text-red-400 hover:border-red-300"
-                      }`}>
-                      <X size={10} />
-                    </button>
-                  </div>
-                );
-              })}
-              {rubrosActivos.length < RUBROS.length && (
-                <button onClick={() => setModalRubro(true)}
-                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold border border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center gap-1">
-                  <Plus size={11} /> Rubro
-                </button>
-              )}
+      {/* Zone 1: Hero donut */}
+      {(() => {
+        let accum = 0;
+        const segs = rubrosActivos.length > 0 ? rubrosActivos.map(rid => {
+          const rc   = RUBROS.find(r => r.id === rid);
+          const its  = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+          const cp   = its.filter(i => i.estado === "completado").length;
+          const w    = totalItems > 0 ? its.length / totalItems : (1 / rubrosActivos.length);
+          const seg  = w * C;
+          const fill = seg * (its.length ? cp / its.length : 0);
+          const off  = accum;
+          accum += seg;
+          return { rid, rc, seg, fill, off };
+        }) : null;
+        const obs = etapas.flatMap(e => e.items || []).filter(i => i.estado === "observacion").length;
+        return (
+          <div className="bg-white dark:bg-ink-900 py-6 flex flex-col items-center border-b border-ink-200 dark:border-ink-700">
+            <div className="relative w-[200px] h-[200px]">
+              <svg width="200" height="200" viewBox="0 0 200 200" className="-rotate-90">
+                <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" strokeWidth="14"
+                  className="text-ink-100 dark:text-ink-800" />
+                {segs ? segs.map(({ rid, rc, seg, fill, off }) => (
+                  <g key={rid}>
+                    <circle cx="100" cy="100" r="80" fill="none" strokeWidth="14"
+                      stroke={(rc?.hex || "#8b5cf6") + "33"}
+                      strokeDasharray={`${seg} ${C}`}
+                      strokeDashoffset={-off} />
+                    {fill > 0.5 && (
+                      <circle cx="100" cy="100" r="80" fill="none" strokeWidth="14"
+                        stroke={rc?.hex || "#8b5cf6"}
+                        strokeDasharray={`${fill} ${C}`}
+                        strokeDashoffset={-off} />
+                    )}
+                  </g>
+                )) : (
+                  <circle cx="100" cy="100" r="80" fill="none" strokeWidth="14"
+                    stroke={pColor}
+                    strokeDasharray={`${pct * 5.027} ${C}`}
+                    strokeDashoffset="0" />
+                )}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <div className="text-[44px] font-bold tracking-[-0.05em] leading-none" style={{ color: pColor }}>{pct}%</div>
+                <div className="text-xs text-ink-400 dark:text-ink-500 mt-1">completado</div>
+              </div>
+            </div>
+            <div className="flex gap-8 mt-5">
+              <div className="text-center">
+                <div className="text-[24px] font-bold tracking-tight text-ink dark:text-ink-50">{totalItems}</div>
+                <div className="text-[11px] text-ink-400 dark:text-ink-500">total</div>
+              </div>
+              <div className="text-center">
+                <div className="text-[24px] font-bold tracking-tight text-emerald-600 dark:text-emerald-400">{completados}</div>
+                <div className="text-[11px] text-ink-400 dark:text-ink-500">completos</div>
+              </div>
+              <div className="text-center">
+                <div className="text-[24px] font-bold tracking-tight text-red-500">{obs}</div>
+                <div className="text-[11px] text-ink-400 dark:text-ink-500">observaciones</div>
+              </div>
             </div>
           </div>
-        )}
+        );
+      })()}
 
-        <div className="px-3.5 pt-3 md:px-6 md:pt-4">
-          {etapasFiltradas.map(etapa => {
-            const open    = !!expandidas[etapa.id];
-            const ep      = pctEtapa(etapa);
-            const mf      = fmtMonto(etapa);
-            const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
+      {/* Zone 2: Rubro cards */}
+      {rubrosActivos.length > 0 && (
+        <div className="px-3.5 pt-4 pb-3 bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
+          <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
+            <button onClick={() => setRubroActivo(null)}
+              className={`flex-shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all ${
+                rubroActivo === null
+                  ? "bg-ink dark:bg-ink-50 border-ink dark:border-ink-50"
+                  : "bg-white dark:bg-ink-900 border-ink-200 dark:border-ink-700"
+              }`}>
+              <div className={`font-bold text-[13px] mb-2.5 ${rubroActivo === null ? "text-white dark:text-ink" : "text-ink dark:text-ink-50"}`}>
+                General
+              </div>
+              <div className="h-1 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-[width_.4s_ease]"
+                  style={{ width: `${pct}%`, background: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }} />
+              </div>
+              <div className="text-[12px] font-bold mt-1.5"
+                style={{ color: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }}>{pct}%</div>
+            </button>
 
-            return (
-              <div key={etapa.id}
-                style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
-                className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden`}>
-                <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
-                  className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
-                      {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
+            {rubrosActivos.map(rid => {
+              const rc = RUBROS.find(r => r.id === rid);
+              const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+              const cp  = its.filter(i => i.estado === "completado").length;
+              const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+              const isActive = rubroActivo === rid;
+              const cfg = rubrosConfig[rid] || {};
+              const hoy = new Date().toISOString().slice(0, 10);
+              const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < hoy && rp < 100;
+              const fin = fmtFecha(cfg.fechaEstimadaFin);
+              return (
+                <div key={rid} className="flex-shrink-0">
+                  <button onClick={() => setRubroActivo(isActive ? null : rid)}
+                    style={isActive ? { borderColor: rc?.hex, boxShadow: `0 0 0 1px ${rc?.hex}` } : {}}
+                    className={`w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all bg-white dark:bg-ink-900 block ${
+                      isActive ? "" : "border-ink-200 dark:border-ink-700"
+                    }`}>
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
+                      <span className="font-bold text-[12px] text-ink dark:text-ink-50 truncate">{rc?.label}</span>
                     </div>
-                    <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
-                      {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
-                      {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+                    <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${rp}%`, background: rc?.hex }} />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-9 h-9">
-                      <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
-                        <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
-                        <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
-                          stroke={progressStroke(ep)}
-                          strokeDasharray={`${ep * 0.942} 100`}
-                          style={{ transition: "stroke-dasharray .4s ease" }} />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
+                      {fin && <span className={`text-[10px] ${vencido ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{fin}</span>}
                     </div>
-                    <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+                  </button>
+                  <div className="flex gap-2 mt-1.5 px-1">
+                    <button onClick={() => setModalFechasRubro(rid)}
+                      className="text-ink-300 dark:text-ink-600 hover:text-violet-500 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                      <Calendar size={11} />
+                    </button>
+                    <button onClick={() => removeRubro(rid)}
+                      className="text-ink-300 dark:text-ink-600 hover:text-red-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                      <X size={11} />
+                    </button>
                   </div>
                 </div>
+              );
+            })}
 
-                <Accordion open={open}>
-                  <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
-                    <SortableItemList
-                      etapaId={etapa.id}
-                      items={etapa.items}
-                      onReorder={reorderItems}
-                      onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
-                      onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
-                    />
+            {rubrosActivos.length < RUBROS.length && (
+              <button onClick={() => setModalRubro(true)}
+                className="flex-shrink-0 w-36 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 flex flex-col items-center justify-center gap-1.5 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors min-h-[90px]">
+                <Plus size={15} />
+                <span className="text-[12px] font-semibold">Rubro</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
-                    {nuevoItemEtapa === etapa.id ? (
-                      <div className="flex gap-1.5 mt-2">
-                        <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
-                          placeholder="Descripción del ítem..."
-                          className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
-                        <button onClick={() => addItem(etapa.id)}
-                          className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold">
-                          <Plus size={14} />
-                        </button>
-                        <button onClick={() => setNuevoItemEtapa(null)}
-                          className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400">
-                          <X size={13} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
-                        className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
-                        <Plus size={13} /> Agregar ítem
+      {rubrosActivos.length === 0 && (
+        <div className="px-3.5 pt-4 pb-2">
+          <button onClick={() => setModalRubro(true)}
+            className="w-full py-3.5 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2 font-semibold text-sm">
+            <Plus size={15} /> Agregar rubro
+          </button>
+        </div>
+      )}
+
+      {/* Zone 3: Etapas */}
+      <div className="px-3.5 pt-3">
+        {etapasFiltradas.map(etapa => {
+          const open    = !!expandidas[etapa.id];
+          const ep      = pctEtapa(etapa);
+          const mf      = fmtMonto(etapa);
+          const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
+
+          return (
+            <div key={etapa.id}
+              style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
+              className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden`}>
+              <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
+                className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
+                    {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
+                  </div>
+                  <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                    {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
+                    {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-9 h-9">
+                    <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
+                      <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
+                      <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+                        stroke={progressStroke(ep)}
+                        strokeDasharray={`${ep * 0.942} 100`}
+                        style={{ transition: "stroke-dasharray .4s ease" }} />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+                  </div>
+                  <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+                </div>
+              </div>
+
+              <Accordion open={open}>
+                <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
+                  <SortableItemList
+                    etapaId={etapa.id}
+                    items={etapa.items}
+                    onReorder={reorderItems}
+                    onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
+                    onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
+                  />
+
+                  {nuevoItemEtapa === etapa.id ? (
+                    <div className="flex gap-1.5 mt-2">
+                      <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
+                        placeholder="Descripción del ítem..."
+                        className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
+                      <button onClick={() => addItem(etapa.id)}
+                        className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold">
+                        <Plus size={14} />
                       </button>
-                    )}
-
-                    <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
-                      <div className="flex items-center gap-2">
-                        <Label>Monto etapa</Label>
-                        <div className="flex gap-1.5 flex-1">
-                          <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })}
-                            placeholder="0"
-                            className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
-                          <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
-                            className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
-                              (etapa.moneda || "ARS") === "USD"
-                                ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                                : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
-                            }`}>
-                            {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
-                          </button>
-                        </div>
-                      </div>
+                      <button onClick={() => setNuevoItemEtapa(null)}
+                        className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400">
+                        <X size={13} />
+                      </button>
                     </div>
+                  ) : (
+                    <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
+                      className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
+                      <Plus size={13} /> Agregar ítem
+                    </button>
+                  )}
 
-                    <div className="mt-3">
-                      {etapa.firma && (
-                        <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
-                          <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
-                            <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">
-                              {etapa.firma.firmante} · {etapa.firma.fecha}
-                            </div>
-                            {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
-                              <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                  <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+                    <div className="flex items-center gap-2">
+                      <Label>Monto etapa</Label>
+                      <div className="flex gap-1.5 flex-1">
+                        <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })}
+                          placeholder="0"
+                          className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
+                        <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+                            (etapa.moneda || "ARS") === "USD"
+                              ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                              : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
+                          }`}>
+                          {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </Accordion>
-              </div>
-            );
-          })}
-        </div>
+
+                  <div className="mt-3">
+                    {etapa.firma && (
+                      <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
+                        <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
+                          <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">
+                            {etapa.firma.firmante} · {etapa.firma.fecha}
+                          </div>
+                          {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
+                            <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Accordion>
+            </div>
+          );
+        })}
       </div>
 
       {/* Modal agregar rubro */}
