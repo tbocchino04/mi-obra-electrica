@@ -646,8 +646,7 @@ export default function App() {
                 const cfg       = rubrosConfig[rid] || {};
                 const hoy       = new Date().toISOString().slice(0, 10);
                 const vencido   = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < hoy && rp < 100;
-                const enTermino = rp === 100 && cfg.fechaEstimadaFin && (!cfg.fechaRealFin || cfg.fechaRealFin <= cfg.fechaEstimadaFin);
-                const inicio    = fmtFecha(cfg.fechaEstimadaInicio);
+                const enTermino = rp === 100 && !!cfg.fechaEstimadaFin;
                 const fin       = fmtFecha(cfg.fechaEstimadaFin);
 
                 return (
@@ -670,9 +669,9 @@ export default function App() {
                         </button>
                       </div>
                     </div>
-                    {(inicio || fin) && (
+                    {fin && (
                       <div className={`text-[10px] mb-1 ${vencido ? "text-red-400" : "text-ink-400 dark:text-ink-500"}`}>
-                        {inicio && fin ? `${inicio} → ${fin}` : inicio ? `desde ${inicio}` : `hasta ${fin}`}
+                        hasta {fin}
                       </div>
                     )}
                     {enTermino && (
@@ -1022,9 +1021,7 @@ export default function App() {
               </button>
             </div>
             {[
-              ["fechaEstimadaInicio", "Inicio estimado"],
-              ["fechaEstimadaFin",    "Fin estimado"],
-              ["fechaRealFin",        "Fin real"],
+              ["fechaEstimadaFin", "Fecha estimada de fin"],
             ].map(([campo, label]) => (
               <div key={campo} className="mb-4">
                 <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-1.5">{label}</div>
