@@ -3,7 +3,7 @@ import {
   User, MapPin, Cloud, Loader2, FileCheck,
   ArrowLeft, Sun, Moon, Plus, X, ChevronDown,
   Share2, MoreHorizontal, FileDown, Users, Check,
-  Camera, Trash2, AlertCircle, MessageSquare, Clock,
+  Camera, Trash2, AlertCircle, MessageSquare, Clock, Calendar,
 } from "lucide-react";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
@@ -168,7 +168,9 @@ export default function App() {
   const [copiedSocioRubro, setCopiedSocioRubro] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [rubroActivo,   setRubroActivo]   = useState(null);
-  const [modalRubro,    setModalRubro]    = useState(false);
+  const [modalRubro,      setModalRubro]      = useState(false);
+  const [rubrosConfig,    setRubrosConfig]    = useState({});
+  const [modalFechasRubro, setModalFechasRubro] = useState(null);
   const [menuCompartir, setMenuCompartir] = useState(false);
   const fileRef        = useRef();
   const saveTimer      = useRef();
@@ -200,15 +202,18 @@ export default function App() {
     if (!obraActiva) {
       setEtapas([]);
       setObraInfo({ nombre: "", cliente: "", direccion: "", clienteEmail: "", adminEmail: "" });
+      setRubrosConfig({});
       return;
     }
     justLoadedRef.current = true;
-    if (obraActiva.etapas)   setEtapas(obraActiva.etapas);
-    if (obraActiva.obraInfo) setObraInfo(obraActiva.obraInfo);
+    if (obraActiva.etapas)       setEtapas(obraActiva.etapas);
+    if (obraActiva.obraInfo)     setObraInfo(obraActiva.obraInfo);
+    if (obraActiva.rubrosConfig) setRubrosConfig(obraActiva.rubrosConfig);
     unsubRef.current = escucharObra(obraActiva.id, data => {
       justLoadedRef.current = true;
-      if (data?.etapas)   setEtapas(data.etapas);
-      if (data?.obraInfo) setObraInfo(data.obraInfo);
+      if (data?.etapas)       setEtapas(data.etapas);
+      if (data?.obraInfo)     setObraInfo(data.obraInfo);
+      if (data?.rubrosConfig) setRubrosConfig(data.rubrosConfig);
       setCloudStatus("Sincronizado");
     });
     return () => { if (unsubRef.current) unsubRef.current(); };
@@ -304,6 +309,19 @@ export default function App() {
     await navigator.clipboard.writeText(url);
     setCopiedSocioRubro(rubroId ?? "general");
     setTimeout(() => setCopiedSocioRubro(null), 2500);
+  }
+
+  function fmtFecha(iso) {
+    if (!iso) return null;
+    const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+    const [, m, d] = iso.split("-");
+    return `${parseInt(d)} ${meses[parseInt(m) - 1]}`;
+  }
+
+  async function guardarFechasRubro(rubroId, cambios) {
+    const cfg = { ...rubrosConfig, [rubroId]: { ...(rubrosConfig[rubroId] || {}), ...cambios } };
+    setRubrosConfig(cfg);
+    await guardarObra(obraActiva.id, { rubrosConfig: cfg });
   }
 
   async function descargarReporte() {
@@ -624,19 +642,51 @@ export default function App() {
                 const cp  = its.filter(i => i.estado === "completado").length;
                 const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
                 const isActive = rubroActivo === rid;
+
+                const cfg       = rubrosConfig[rid] || {};
+                const hoy       = new Date().toISOString().slice(0, 10);
+                const vencido   = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < hoy && rp < 100;
+                const enTermino = rp === 100 && cfg.fechaEstimadaFin && (!cfg.fechaRealFin || cfg.fechaRealFin <= cfg.fechaEstimadaFin);
+                const inicio    = fmtFecha(cfg.fechaEstimadaInicio);
+                const fin       = fmtFecha(cfg.fechaEstimadaFin);
+
                 return (
-                  <button key={rid} onClick={() => setRubroActivo(isActive ? null : rid)}
-                    className="text-left cursor-pointer bg-transparent border-0 p-0 w-full">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <span className={`text-[11px] font-semibold transition-colors ${isActive ? (rc?.text || "text-violet-600 dark:text-violet-400") : "text-ink-500 dark:text-ink-400"}`}>
-                        {lbl}
-                      </span>
-                      <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
+                  <div key={rid}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <button onClick={() => setRubroActivo(isActive ? null : rid)}
+                        className="text-left cursor-pointer bg-transparent border-0 p-0 flex items-center gap-1 min-w-0">
+                        {vencido && <AlertCircle size={11} className="text-red-500 flex-shrink-0" />}
+                        <span className={`text-[11px] font-semibold transition-colors truncate ${
+                          vencido   ? "text-red-500" :
+                          isActive  ? (rc?.text || "text-violet-600 dark:text-violet-400") :
+                                      "text-ink-500 dark:text-ink-400"
+                        }`}>{lbl}</span>
+                      </button>
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+                        <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
+                        <button onClick={() => setModalFechasRubro(rid)}
+                          className="text-ink-400 dark:text-ink-500 hover:text-violet-600 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 rounded">
+                          <Calendar size={11} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${rp}%`, background: rc?.hex || progressStroke(rp) }} />
-                    </div>
-                  </button>
+                    {(inicio || fin) && (
+                      <div className={`text-[10px] mb-1 ${vencido ? "text-red-400" : "text-ink-400 dark:text-ink-500"}`}>
+                        {inicio && fin ? `${inicio} → ${fin}` : inicio ? `desde ${inicio}` : `hasta ${fin}`}
+                      </div>
+                    )}
+                    {enTermino && (
+                      <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mb-1 flex items-center gap-1">
+                        <Check size={10} /> En término
+                      </div>
+                    )}
+                    <button onClick={() => setRubroActivo(isActive ? null : rid)}
+                      className="w-full cursor-pointer bg-transparent border-0 p-0">
+                      <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-[width_.45s_ease]" style={{ width: `${rp}%`, background: rc?.hex || progressStroke(rp) }} />
+                      </div>
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -955,6 +1005,37 @@ export default function App() {
           mensaje={`Se eliminará "${confirmItem.tarea}" de esta etapa.`}
           onCancel={() => setConfirmItem(null)}
           onConfirm={() => { deleteItem(confirmItem.etapaId, confirmItem.itemId); setConfirmItem(null); }} />
+      )}
+
+      {modalFechasRubro && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-ink/60 px-5"
+          onClick={e => { if (e.target === e.currentTarget) setModalFechasRubro(null); }}>
+          <div className="bg-white dark:bg-ink-900 rounded-2xl p-6 w-full max-w-xs border border-ink-200 dark:border-ink-700">
+            <div className="flex items-center justify-between mb-5">
+              <div className="font-bold text-ink dark:text-ink-50 text-[15px] flex items-center gap-2">
+                <Calendar size={15} className="text-violet-600 dark:text-violet-400" />
+                {RUBROS.find(r => r.id === modalFechasRubro)?.label || modalFechasRubro}
+              </div>
+              <button onClick={() => setModalFechasRubro(null)}
+                className="text-ink-400 bg-transparent border-0 cursor-pointer p-1">
+                <X size={16} />
+              </button>
+            </div>
+            {[
+              ["fechaEstimadaInicio", "Inicio estimado"],
+              ["fechaEstimadaFin",    "Fin estimado"],
+              ["fechaRealFin",        "Fin real"],
+            ].map(([campo, label]) => (
+              <div key={campo} className="mb-4">
+                <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-1.5">{label}</div>
+                <input type="date"
+                  value={rubrosConfig[modalFechasRubro]?.[campo] || ""}
+                  onChange={e => guardarFechasRubro(modalFechasRubro, { [campo]: e.target.value || null })}
+                  className="w-full px-3 py-2.5 rounded-xl border border-ink-200 dark:border-ink-700 text-sm bg-ink-50 dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
     </div>
