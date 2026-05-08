@@ -1,10 +1,166 @@
 import { useState } from "react";
-import { Building2, Plus, User, MapPin, Trash2, Menu, Search, X } from "lucide-react";
+import { Building2, Plus, User, MapPin, Trash2, Menu, Search, X, AlertTriangle, FileCheck, Clock } from "lucide-react";
 import AvanzaLogo from "./AvanzaLogo";
 import { crearObra } from "../firebase";
 import { ETAPAS_DEFAULT, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "../constants/data";
 import { Label, SheetHandle, ModalConfirm } from "./ui";
-import { progressColor, progressStroke, statusBadge, cardAccent } from "../utils/helpers";
+
+const HOY = new Date().toISOString().slice(0, 10);
+
+function fmtFechaCorta(iso) {
+  if (!iso) return null;
+  const [, m, d] = iso.split("-");
+  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  return `${parseInt(d)} ${meses[parseInt(m) - 1]}`;
+}
+
+function computeObra(obra) {
+  const etapas = obra.etapas || [];
+  const rubrosConfig = obra.rubrosConfig || {};
+  const obraInfo = obra.obraInfo || {};
+  const rubrosActivos = obraInfo.rubros?.length
+    ? obraInfo.rubros
+    : obraInfo.rubro ? [obraInfo.rubro] : [];
+
+  const allItems = etapas.flatMap(e => e.items || []);
+  const total = allItems.length;
+  const comp = allItems.filter(i => i.estado === "completado").length;
+  const pct = total ? Math.round(comp / total * 100) : 0;
+
+  const rubrosData = rubrosActivos.map(rid => {
+    const rc = RUBROS.find(r => r.id === rid);
+    const items = etapas.filter(e => e.rubro === rid || (!e.rubro && obraInfo.rubro === rid)).flatMap(e => e.items || []);
+    const rComp = items.filter(i => i.estado === "completado").length;
+    const rPct = items.length ? Math.round(rComp / items.length * 100) : 0;
+    const cfg = rubrosConfig[rid] || {};
+    const atrasado = !!(cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rPct < 100);
+    return { rid, rc, pct: rPct, total: items.length, comp: rComp, atrasado, fechaFin: cfg.fechaEstimadaFin };
+  });
+
+  const atrasado = rubrosData.some(r => r.atrasado);
+  const porFirmar = etapas.some(e => {
+    const its = e.items || [];
+    return its.length > 0 && its.every(i => i.estado === "completado") && !e.firma;
+  });
+
+  const ultimaActividad = allItems
+    .filter(i => i.estado === "completado" && i.ultimoCambio?.timestamp)
+    .sort((a, b) => b.ultimoCambio.timestamp - a.ultimoCambio.timestamp)[0] || null;
+
+  return { pct, total, comp, rubrosData, atrasado, porFirmar, ultimaActividad };
+}
+
+function ActivityLabel({ ts }) {
+  if (!ts) return <span className="text-[10px] text-ink-300 dark:text-ink-600">Sin actividad reciente</span>;
+  const ms = Date.now() - ts;
+  const h = Math.round(ms / 3600000);
+  const d = Math.round(ms / 86400000);
+  const label = d >= 2 ? `${d}d` : h >= 1 ? `${h}h` : "< 1h";
+  return (
+    <span className="text-[10px] text-ink-400 dark:text-ink-500 flex items-center gap-1">
+      <Clock size={9} /> Última actividad hace {label}
+    </span>
+  );
+}
+
+function StoryCard({ obra, stats, onSelect, onEliminar }) {
+  const { pct, total, comp, rubrosData, atrasado, porFirmar, ultimaActividad } = stats;
+  const info = obra.obraInfo || {};
+
+  const pctColor = atrasado
+    ? "text-red-500 dark:text-red-400"
+    : pct === 100
+    ? "text-emerald-500 dark:text-emerald-400"
+    : pct > 50
+    ? "text-violet-600 dark:text-violet-400"
+    : "text-ink dark:text-ink-50";
+  const progColor = atrasado ? "#ef4444" : pct === 100 ? "#10b981" : "#7c5cc9";
+  const headerBg = atrasado
+    ? "bg-gradient-to-br from-red-500/[0.07] to-transparent"
+    : pct === 100
+    ? "bg-gradient-to-br from-emerald-500/[0.07] to-transparent"
+    : "bg-gradient-to-br from-violet-600/[0.06] to-transparent";
+
+  return (
+    <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden hover:shadow-card hover:-translate-y-px transition-all duration-200">
+      {/* Header zone */}
+      <div className={`${headerBg} px-4 pt-4 pb-3 cursor-pointer`} onClick={() => onSelect(obra)}>
+        {(atrasado || porFirmar) && (
+          <div className="flex gap-1.5 mb-2.5 flex-wrap">
+            {atrasado && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400">
+                <AlertTriangle size={9} /> ATRASADA
+              </span>
+            )}
+            {porFirmar && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
+                <FileCheck size={9} /> FIRMA PENDIENTE
+              </span>
+            )}
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-[15px] text-ink dark:text-ink-50 tracking-tight leading-snug">{info.nombre}</div>
+            <div className="flex gap-3 mt-1 flex-wrap">
+              {info.cliente && (
+                <span className="flex items-center gap-1 text-[11px] text-ink-500 dark:text-ink-400">
+                  <User size={10} /> {info.cliente}
+                </span>
+              )}
+              {info.direccion && (
+                <span className="flex items-center gap-1 text-[11px] text-ink-500 dark:text-ink-400">
+                  <MapPin size={10} /> {info.direccion}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className={`text-[28px] font-black leading-none tracking-[-2px] ${pctColor}`}>{pct}%</div>
+            <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">{comp}/{total}</div>
+          </div>
+        </div>
+        <div className="h-[3px] bg-ink-100 dark:bg-ink-800 rounded-full mt-3 overflow-hidden">
+          <div className="h-full rounded-full transition-[width_.5s_ease]"
+            style={{ width: `${pct}%`, background: progColor }} />
+        </div>
+      </div>
+
+      {/* Rubros strip */}
+      {rubrosData.length > 0 && (
+        <div className="px-4 py-2.5 border-t border-ink-100 dark:border-ink-800 cursor-pointer" onClick={() => onSelect(obra)}>
+          <div className="flex flex-col gap-1.5">
+            {rubrosData.map(({ rid, rc, pct: rp, total: rt, comp: rc2, atrasado: ra, fechaFin }) => (
+              <div key={rid} className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex || "#7c5cc9" }} />
+                <div className="text-[11px] font-semibold text-ink-600 dark:text-ink-300 w-[72px] flex-shrink-0 truncate">{rc?.label || rid}</div>
+                <div className="flex-1 h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-[width_.45s_ease]"
+                    style={{ width: `${rp}%`, background: ra ? "#ef4444" : (rc?.hex || "#7c5cc9") }} />
+                </div>
+                <div className={`text-[10px] font-bold w-7 text-right flex-shrink-0 ${ra ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{rp}%</div>
+                {fechaFin && (
+                  <div className={`text-[10px] flex-shrink-0 w-12 text-right ${ra ? "text-red-400" : "text-ink-300 dark:text-ink-600"}`}>
+                    {fmtFechaCorta(fechaFin)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="px-4 py-2 border-t border-ink-100 dark:border-ink-800 flex items-center justify-between gap-2">
+        <ActivityLabel ts={ultimaActividad?.ultimoCambio?.timestamp} />
+        <button onClick={e => { e.stopPropagation(); onEliminar(obra); }}
+          className="bg-transparent border-0 text-red-400 cursor-pointer text-xs font-semibold flex items-center gap-1.5 py-0.5 flex-shrink-0">
+          <Trash2 size={11} /> Eliminar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSidebar }) {
   const [nombre,       setNombre]       = useState("");
@@ -41,8 +197,28 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
     setModal(false); setCreando(false);
   }
 
+  const q = busqueda.toLowerCase().trim();
+  const filtradas = q
+    ? obras.filter(o =>
+        (o.obraInfo?.nombre    || "").toLowerCase().includes(q) ||
+        (o.obraInfo?.cliente   || "").toLowerCase().includes(q) ||
+        (o.obraInfo?.direccion || "").toLowerCase().includes(q)
+      )
+    : obras;
+
+  const filtradas_stats = filtradas.map(o => ({ obra: o, stats: computeObra(o) }));
+  const sorted = [...filtradas_stats].sort((a, b) => {
+    if (a.stats.atrasado !== b.stats.atrasado) return a.stats.atrasado ? -1 : 1;
+    if (a.stats.porFirmar !== b.stats.porFirmar) return a.stats.porFirmar ? -1 : 1;
+    return 0;
+  });
+
+  const atrasadasCount = obras.filter(o => computeObra(o).atrasado).length;
+  const firmaCount = obras.filter(o => computeObra(o).porFirmar).length;
+
   return (
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24 md:pb-8">
+      {/* Header */}
       <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 md:px-8 pt-7 pb-6">
         <div className="flex items-center gap-3">
           <button onClick={onOpenSidebar}
@@ -60,8 +236,25 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
         </div>
       </div>
 
+      {/* Alert ribbon */}
+      {(atrasadasCount > 0 || firmaCount > 0) && (
+        <div className="px-3.5 md:px-8 pt-3 flex gap-2 flex-wrap">
+          {atrasadasCount > 0 && (
+            <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
+              <AlertTriangle size={12} /> {atrasadasCount} obra{atrasadasCount !== 1 ? "s" : ""} atrasada{atrasadasCount !== 1 ? "s" : ""}
+            </div>
+          )}
+          {firmaCount > 0 && (
+            <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+              <FileCheck size={12} /> {firmaCount} con firma pendiente
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Search */}
       {obras.length > 0 && (
-        <div className="px-3.5 md:px-8 pt-4 pb-1">
+        <div className="px-3.5 md:px-8 pt-3 pb-1">
           <div className="relative">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400 dark:text-ink-500 pointer-events-none" />
             <input
@@ -80,6 +273,7 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
         </div>
       )}
 
+      {/* Grid */}
       <div className="px-3.5 md:px-8 pt-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
         {obras.length === 0 && (
           <div className="text-center py-16 px-5">
@@ -89,87 +283,22 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
           </div>
         )}
 
-        {(() => {
-          const q = busqueda.toLowerCase().trim();
-          const filtradas = q
-            ? obras.filter(o =>
-                (o.obraInfo?.nombre    || "").toLowerCase().includes(q) ||
-                (o.obraInfo?.cliente   || "").toLowerCase().includes(q) ||
-                (o.obraInfo?.direccion || "").toLowerCase().includes(q)
-              )
-            : obras;
-          if (obras.length > 0 && filtradas.length === 0) return (
-            <div className="text-center py-12 px-5 col-span-3">
-              <Search size={32} className="text-ink-200 dark:text-ink-700 mx-auto mb-3" />
-              <div className="font-bold text-sm text-ink dark:text-ink-50 mb-1">Sin resultados</div>
-              <div className="text-xs text-ink-400 dark:text-ink-500">Probá con otro nombre o cliente.</div>
-            </div>
-          );
-          return filtradas.map(obra => {
-          const total  = (obra.etapas || []).flatMap(e => e.items || []).length;
-          const comp   = (obra.etapas || []).flatMap(e => e.items || []).filter(i => i.estado === "completado").length;
-          const pct    = total ? Math.round(comp / total * 100) : 0;
-          const badge  = statusBadge(pct);
-          const accent = cardAccent(pct);
-          const pColor = progressStroke(pct);
+        {obras.length > 0 && sorted.length === 0 && (
+          <div className="text-center py-12 px-5 col-span-3">
+            <Search size={32} className="text-ink-200 dark:text-ink-700 mx-auto mb-3" />
+            <div className="font-bold text-sm text-ink dark:text-ink-50 mb-1">Sin resultados</div>
+            <div className="text-xs text-ink-400 dark:text-ink-500">Probá con otro nombre o cliente.</div>
+          </div>
+        )}
 
-          return (
-            <div key={obra.id}
-              className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-ink-200 dark:border-ink-700 border-l-[3px] ${accent} overflow-hidden transition-all duration-200 hover:shadow-card hover:-translate-y-px`}>
-              <div onClick={() => onSelect(obra)} className="px-4 py-4 cursor-pointer">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 min-w-0 mr-3.5">
-                    <div className="font-bold text-[15px] text-ink dark:text-ink-50 tracking-tight mb-1">{obra.obraInfo?.nombre}</div>
-                    {obra.obraInfo?.cliente && (
-                      <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400 mb-0.5">
-                        <User size={11} /> {obra.obraInfo.cliente}
-                      </div>
-                    )}
-                    {obra.obraInfo?.direccion && (
-                      <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
-                        <MapPin size={11} /> {obra.obraInfo.direccion}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
-                      <span className={`inline-block text-[11px] font-bold rounded-md px-2 py-0.5 ${badge.cls}`}>
-                        {badge.text}
-                      </span>
-                      {(obra.obraInfo?.rubros || (obra.obraInfo?.rubro ? [obra.obraInfo.rubro] : [])).map(rid => {
-                        const rc = RUBROS.find(r => r.id === rid);
-                        return rc ? (
-                          <span key={rid} className={`inline-block text-[11px] font-semibold rounded-md px-2 py-0.5 ${rc.badge}`}>
-                            {rc.label}
-                          </span>
-                        ) : null;
-                      })}
-                      {obra.obraInfo?.tipo && (
-                        <span className="inline-block text-[11px] font-semibold rounded-md px-2 py-0.5 bg-ink-100 dark:bg-ink-800 text-ink-500 dark:text-ink-400">
-                          {TIPOS_PROYECTO.find(t => t.id === obra.obraInfo.tipo)?.label || obra.obraInfo.tipo}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className={`text-[26px] font-bold tracking-[-0.04em] leading-none ${progressColor(pct)}`}>{pct}%</div>
-                    <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-1">{comp}/{total}</div>
-                  </div>
-                </div>
-                <div className="h-0.5 bg-ink-100 dark:bg-ink-800 rounded-full mt-3.5 overflow-hidden">
-                  <div className="h-full rounded-full transition-[width_.5s_ease]" style={{ width: `${pct}%`, background: pColor }} />
-                </div>
-              </div>
-              <div className="border-t border-ink-100 dark:border-ink-800 px-4 py-2 flex justify-end">
-                <button onClick={() => setConfirmEl(obra)}
-                  className="bg-transparent border-0 text-red-400 cursor-pointer text-xs font-semibold flex items-center gap-1.5 py-0.5">
-                  <Trash2 size={12} /> Eliminar
-                </button>
-              </div>
-            </div>
-          );
-        });
-        })()}
+        {sorted.map(({ obra, stats }) => (
+          <div key={obra.id} className="mb-2.5 md:mb-0">
+            <StoryCard obra={obra} stats={stats} onSelect={onSelect} onEliminar={o => setConfirmEl(o)} />
+          </div>
+        ))}
       </div>
 
+      {/* FAB */}
       <div className="fixed bottom-6 right-5">
         <button onClick={() => setModal(true)}
           className="bg-ink dark:bg-white text-white dark:text-ink font-bold text-sm rounded-2xl px-5 py-3.5 flex items-center gap-2 border-0 cursor-pointer shadow-fab hover:shadow-fab-hover hover:scale-105 active:scale-[.97] transition-all duration-150">
@@ -177,6 +306,7 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
         </button>
       </div>
 
+      {/* New obra modal */}
       {modal && (
         <div className="fixed inset-0 bg-ink/55 flex items-end z-[100]"
           onClick={e => { if (e.target === e.currentTarget) setModal(false); }}>
