@@ -1,17 +1,30 @@
 import { useState } from "react";
-import { Building2, Plus, User, MapPin, Trash2, Menu, Search, X, AlertTriangle, FileCheck, Clock } from "lucide-react";
+import { Building2, Plus, User, MapPin, Trash2, Menu, Search, X, FileCheck, Clock, Calendar, LayoutGrid, List } from "lucide-react";
 import AvanzaLogo from "./AvanzaLogo";
 import { crearObra } from "../firebase";
 import { ETAPAS_DEFAULT, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "../constants/data";
-import { Label, SheetHandle, ModalConfirm } from "./ui";
+import { SheetHandle, ModalConfirm } from "./ui";
 
 const HOY = new Date().toISOString().slice(0, 10);
+const HACE7 = Date.now() - 7 * 24 * 3600 * 1000;
+
+const DIAS_SEMANA = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 
 function fmtFechaCorta(iso) {
   if (!iso) return null;
   const [, m, d] = iso.split("-");
-  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-  return `${parseInt(d)} ${meses[parseInt(m) - 1]}`;
+  return `${parseInt(d)} ${MESES[parseInt(m) - 1]}`;
+}
+
+function fmtTimestamp(ts) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  const diffDays = Math.floor((Date.now() - ts) / 86400000);
+  const hhmm = d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" });
+  if (diffDays === 0) return `hoy · ${hhmm}`;
+  if (diffDays === 1) return `ayer · ${hhmm}`;
+  return `hace ${diffDays} d`;
 }
 
 function computeObra(obra) {
@@ -26,15 +39,20 @@ function computeObra(obra) {
   const total = allItems.length;
   const comp = allItems.filter(i => i.estado === "completado").length;
   const pct = total ? Math.round(comp / total * 100) : 0;
+  const obsCount = allItems.filter(i => i.estado === "observacion").length;
 
   const rubrosData = rubrosActivos.map(rid => {
     const rc = RUBROS.find(r => r.id === rid);
-    const items = etapas.filter(e => e.rubro === rid || (!e.rubro && obraInfo.rubro === rid)).flatMap(e => e.items || []);
+    const etapasRubro = etapas.filter(e => e.rubro === rid || (!e.rubro && obraInfo.rubro === rid));
+    const items = etapasRubro.flatMap(e => e.items || []);
     const rComp = items.filter(i => i.estado === "completado").length;
     const rPct = items.length ? Math.round(rComp / items.length * 100) : 0;
     const cfg = rubrosConfig[rid] || {};
     const atrasado = !!(cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rPct < 100);
-    return { rid, rc, pct: rPct, total: items.length, comp: rComp, atrasado, fechaFin: cfg.fechaEstimadaFin };
+    const etapaActual = etapasRubro.find(e =>
+      (e.items || []).length > 0 && (e.items || []).some(i => i.estado !== "completado")
+    );
+    return { rid, rc, pct: rPct, total: items.length, comp: rComp, atrasado, fechaFin: cfg.fechaEstimadaFin, etapaActual };
   });
 
   const atrasado = rubrosData.some(r => r.atrasado);
@@ -42,121 +60,193 @@ function computeObra(obra) {
     const its = e.items || [];
     return its.length > 0 && its.every(i => i.estado === "completado") && !e.firma;
   });
+  const porFirmarCount = etapas.filter(e => {
+    const its = e.items || [];
+    return its.length > 0 && its.every(i => i.estado === "completado") && !e.firma;
+  }).length;
 
   const ultimaActividad = allItems
-    .filter(i => i.estado === "completado" && i.ultimoCambio?.timestamp)
+    .filter(i => i.ultimoCambio?.timestamp)
     .sort((a, b) => b.ultimoCambio.timestamp - a.ultimoCambio.timestamp)[0] || null;
 
-  return { pct, total, comp, rubrosData, atrasado, porFirmar, ultimaActividad };
-}
+  const actividadSemana = etapas.flatMap(e =>
+    (e.items || [])
+      .filter(i => i.ultimoCambio?.timestamp > HACE7)
+      .map(i => ({
+        tarea: i.tarea,
+        rubro: e.rubro || obraInfo.rubro,
+        ts: i.ultimoCambio.timestamp,
+        dias: Math.round((Date.now() - i.ultimoCambio.timestamp) / 86400000),
+      }))
+  ).sort((a, b) => b.ts - a.ts).slice(0, 3);
 
-function ActivityLabel({ ts }) {
-  if (!ts) return <span className="text-[10px] text-ink-300 dark:text-ink-600">Sin actividad reciente</span>;
-  const ms = Date.now() - ts;
-  const h = Math.round(ms / 3600000);
-  const d = Math.round(ms / 86400000);
-  const label = d >= 2 ? `${d}d` : h >= 1 ? `${h}h` : "< 1h";
-  return (
-    <span className="text-[10px] text-ink-400 dark:text-ink-500 flex items-center gap-1">
-      <Clock size={9} /> Última actividad hace {label}
-    </span>
-  );
+  const proxFin = rubrosActivos
+    .map(rid => (rubrosConfig[rid] || {}).fechaEstimadaFin)
+    .filter(Boolean).filter(d => d >= HOY).sort()[0];
+
+  return { pct, total, comp, rubrosData, atrasado, porFirmar, porFirmarCount, ultimaActividad, obsCount, actividadSemana, proxFin };
 }
 
 function StoryCard({ obra, stats, onSelect, onEliminar }) {
-  const { pct, total, comp, rubrosData, atrasado, porFirmar, ultimaActividad } = stats;
+  const { pct, rubrosData, atrasado, porFirmar, porFirmarCount, ultimaActividad, obsCount, actividadSemana, proxFin } = stats;
   const info = obra.obraInfo || {};
+  const etapas = obra.etapas || [];
 
-  const pctColor = atrasado
-    ? "text-red-500 dark:text-red-400"
-    : pct === 100
-    ? "text-emerald-500 dark:text-emerald-400"
-    : pct > 50
-    ? "text-violet-600 dark:text-violet-400"
-    : "text-ink dark:text-ink-50";
-  const progColor = atrasado ? "#ef4444" : pct === 100 ? "#10b981" : "#7c5cc9";
-  const headerBg = atrasado
-    ? "bg-gradient-to-br from-red-500/[0.07] to-transparent"
-    : pct === 100
-    ? "bg-gradient-to-br from-emerald-500/[0.07] to-transparent"
-    : "bg-gradient-to-br from-violet-600/[0.06] to-transparent";
+  const tipo = (info.tipo || "").toUpperCase();
+  const diasAlFin = proxFin ? Math.ceil((new Date(proxFin) - new Date(HOY)) / 86400000) : null;
+  const finLabel = proxFin ? fmtFechaCorta(proxFin) : null;
+  const finUrgente = diasAlFin !== null && diasAlFin <= 18;
+
+  const atrasadasCount = rubrosData.filter(r => r.atrasado).length;
+  const tsLabel = fmtTimestamp(ultimaActividad?.ultimoCambio?.timestamp);
+
+  // Gradient blobs based on rubro colors
+  const blob1 = rubrosData[0]?.rc?.hex || "#7c5cc9";
+  const blob2 = rubrosData[1]?.rc?.hex || blob1;
 
   return (
-    <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden hover:shadow-card hover:-translate-y-px transition-all duration-200">
-      {/* Header zone */}
-      <div className={`${headerBg} px-4 pt-4 pb-3 cursor-pointer`} onClick={() => onSelect(obra)}>
-        {(atrasado || porFirmar) && (
-          <div className="flex gap-1.5 mb-2.5 flex-wrap">
-            {atrasado && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400">
-                <AlertTriangle size={9} /> ATRASADA
-              </span>
-            )}
-            {porFirmar && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400">
-                <FileCheck size={9} /> FIRMA PENDIENTE
-              </span>
-            )}
+    <div className="bg-[#13111f] dark:bg-[#13111f] rounded-2xl overflow-hidden">
+      {/* Photo/gradient header */}
+      <div className="relative h-44 overflow-hidden cursor-pointer" onClick={() => onSelect(obra)}>
+        {/* Color blobs */}
+        <div className="absolute -top-8 -right-8 w-44 h-44 rounded-full blur-3xl opacity-50 pointer-events-none"
+          style={{ background: blob1 }} />
+        <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full blur-3xl opacity-35 pointer-events-none"
+          style={{ background: blob2 }} />
+        {/* Bottom gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#13111f] via-[#13111f]/40 to-transparent pointer-events-none" />
+
+        {/* Tipo badge */}
+        {tipo && (
+          <div className="absolute top-3 left-3 bg-white/90 text-[#0d0b14] text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">
+            {tipo}
           </div>
         )}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="font-bold text-[15px] text-ink dark:text-ink-50 tracking-tight leading-snug">{info.nombre}</div>
-            <div className="flex gap-3 mt-1 flex-wrap">
-              {info.cliente && (
-                <span className="flex items-center gap-1 text-[11px] text-ink-500 dark:text-ink-400">
-                  <User size={10} /> {info.cliente}
-                </span>
-              )}
-              {info.direccion && (
-                <span className="flex items-center gap-1 text-[11px] text-ink-500 dark:text-ink-400">
-                  <MapPin size={10} /> {info.direccion}
-                </span>
-              )}
-            </div>
+
+        {/* Status badge */}
+        {atrasado && (
+          <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
+            <span className="text-[8px]">●</span> ATRASADA
           </div>
-          <div className="text-right flex-shrink-0">
-            <div className={`text-[28px] font-black leading-none tracking-[-2px] ${pctColor}`}>{pct}%</div>
-            <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">{comp}/{total}</div>
+        )}
+        {!atrasado && porFirmar && (
+          <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-400 text-[#0d0b14] text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wide">
+            <FileCheck size={9} /> FIRMA PENDIENTE
           </div>
-        </div>
-        <div className="h-[3px] bg-ink-100 dark:bg-ink-800 rounded-full mt-3 overflow-hidden">
-          <div className="h-full rounded-full transition-[width_.5s_ease]"
-            style={{ width: `${pct}%`, background: progColor }} />
+        )}
+
+        {/* Name + % */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 flex items-end justify-between">
+          <div>
+            <div className="text-white font-bold text-[20px] tracking-[-0.03em] leading-tight">{info.nombre}</div>
+            {info.cliente && <div className="text-white/65 text-[12px] mt-0.5">{info.cliente}</div>}
+          </div>
+          <div className="text-white font-black leading-none tracking-[-2px]">
+            <span className="text-[44px]">{pct}</span><span className="text-[18px] align-super font-bold tracking-normal">%</span>
+          </div>
         </div>
       </div>
 
-      {/* Rubros strip */}
+      {/* Progress bar */}
+      <div className="h-[3px] bg-white/10">
+        <div className="h-full transition-[width_.5s_ease]"
+          style={{ width: `${pct}%`, background: atrasado ? "#ef4444" : pct === 100 ? "#10b981" : "#7c5cc9" }} />
+      </div>
+
+      {/* Meta strip */}
+      <div className="px-4 py-3 flex items-center gap-4 flex-wrap border-b border-white/[0.07] cursor-pointer" onClick={() => onSelect(obra)}>
+        {info.direccion && (
+          <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+            <MapPin size={10} /> {info.direccion}
+          </span>
+        )}
+        {finLabel && (
+          <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+            <Calendar size={10} />
+            Fin {finLabel}
+            {diasAlFin !== null && (
+              <span className={`font-bold ${finUrgente ? "text-red-400" : "text-white/40"}`}>· en {diasAlFin}d</span>
+            )}
+          </span>
+        )}
+      </div>
+
+      {/* Rubros table */}
       {rubrosData.length > 0 && (
-        <div className="px-4 py-2.5 border-t border-ink-100 dark:border-ink-800 cursor-pointer" onClick={() => onSelect(obra)}>
-          <div className="flex flex-col gap-1.5">
-            {rubrosData.map(({ rid, rc, pct: rp, total: rt, comp: rc2, atrasado: ra, fechaFin }) => (
-              <div key={rid} className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex || "#7c5cc9" }} />
-                <div className="text-[11px] font-semibold text-ink-600 dark:text-ink-300 w-[72px] flex-shrink-0 truncate">{rc?.label || rid}</div>
-                <div className="flex-1 h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-[width_.45s_ease]"
-                    style={{ width: `${rp}%`, background: ra ? "#ef4444" : (rc?.hex || "#7c5cc9") }} />
-                </div>
-                <div className={`text-[10px] font-bold w-7 text-right flex-shrink-0 ${ra ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{rp}%</div>
-                {fechaFin && (
-                  <div className={`text-[10px] flex-shrink-0 w-12 text-right ${ra ? "text-red-400" : "text-ink-300 dark:text-ink-600"}`}>
-                    {fmtFechaCorta(fechaFin)}
-                  </div>
-                )}
+        <div className="px-4 py-3 border-b border-white/[0.07] cursor-pointer" onClick={() => onSelect(obra)}>
+          {rubrosData.map(({ rid, rc, pct: rp, atrasado: ra, etapaActual }) => (
+            <div key={rid} className="flex items-center gap-2 mb-2 last:mb-0">
+              <div className="flex items-center gap-1.5 w-[88px] flex-shrink-0">
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
+                <span className="text-[11px] font-semibold text-white/80 truncate">{rc?.label}</span>
               </div>
-            ))}
-          </div>
+              <span className="text-[10px] text-white/35 flex-shrink-0 truncate max-w-[90px]">
+                {etapaActual ? `· ${etapaActual.nombre}` : "· Completo"}
+              </span>
+              {ra && <span className="text-[10px] font-bold text-red-400 flex-shrink-0 ml-auto mr-1">● atrasada</span>}
+              {!ra && <div className="flex-1" />}
+              <div className="w-20 h-[3px] bg-white/10 rounded-full overflow-hidden flex-shrink-0">
+                <div className="h-full rounded-full transition-[width_.45s_ease]"
+                  style={{ width: `${rp}%`, background: ra ? "#ef4444" : rc?.hex }} />
+              </div>
+              <span className="text-[11px] font-bold w-8 text-right flex-shrink-0"
+                style={{ color: ra ? "#ef4444" : rc?.hex }}>{rp}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Esta semana */}
+      {actividadSemana.length > 0 && (
+        <div className="px-4 py-3 border-b border-white/[0.07] cursor-pointer" onClick={() => onSelect(obra)}>
+          <div className="text-[9px] font-black tracking-[0.15em] uppercase text-white/30 mb-2">Esta semana</div>
+          {actividadSemana.map((act, i) => {
+            const rc = RUBROS.find(r => r.id === act.rubro);
+            const label = act.dias === 0 ? "HOY" : act.dias === 1 ? "AYER" : `${act.dias} DÍAS`;
+            return (
+              <div key={i} className="flex items-center gap-2 mb-1 last:mb-0">
+                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex || "#7c5cc9" }} />
+                <span className="text-[10px] font-black text-white/35 w-10 flex-shrink-0">{label}</span>
+                <span className="text-[11px] text-white/60 truncate">
+                  {rc?.label}{act.tarea ? ` · ${act.tarea}` : ""}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-ink-100 dark:border-ink-800 flex items-center justify-between gap-2">
-        <ActivityLabel ts={ultimaActividad?.ultimoCambio?.timestamp} />
-        <button onClick={e => { e.stopPropagation(); onEliminar(obra); }}
-          className="bg-transparent border-0 text-red-400 cursor-pointer text-xs font-semibold flex items-center gap-1.5 py-0.5 flex-shrink-0">
-          <Trash2 size={11} /> Eliminar
-        </button>
+      <div className="px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {atrasadasCount > 0 && (
+            <span className="text-[11px] font-semibold text-red-400 flex items-center gap-1">
+              <span className="text-[9px]">●</span> {atrasadasCount} atrasada{atrasadasCount > 1 ? "s" : ""}
+            </span>
+          )}
+          {obsCount > 0 && (
+            <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
+              <span className="text-[9px]">●</span> {obsCount} obs.
+            </span>
+          )}
+          {porFirmarCount > 0 && (
+            <span className="text-[11px] font-semibold text-white/40 flex items-center gap-1">
+              <FileCheck size={10} /> {porFirmarCount} firmar
+            </span>
+          )}
+          {atrasadasCount === 0 && obsCount === 0 && porFirmarCount === 0 && (
+            <span className="text-[11px] text-white/25 flex items-center gap-1">
+              <Clock size={9} /> Sin alertas
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {tsLabel && <span className="text-[10px] text-white/30">{tsLabel}</span>}
+          <button onClick={e => { e.stopPropagation(); onEliminar(obra); }}
+            className="bg-transparent border-0 text-red-400/60 hover:text-red-400 cursor-pointer flex items-center gap-1 text-[11px] font-semibold transition-colors p-0">
+            <Trash2 size={11} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -174,6 +264,8 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
   const [modal,        setModal]        = useState(false);
   const [confirmEl,    setConfirmEl]    = useState(null);
   const [busqueda,     setBusqueda]     = useState("");
+  const [vistaLista,   setVistaLista]   = useState(false);
+  const [searchOpen,   setSearchOpen]   = useState(false);
 
   async function crear() {
     if (!nombre.trim()) return;
@@ -197,6 +289,12 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
     setModal(false); setCreando(false);
   }
 
+  const hoyDate = new Date();
+  const hoyLabel = `${DIAS_SEMANA[hoyDate.getDay()]} ${hoyDate.getDate()} ${MESES[hoyDate.getMonth()]}`;
+
+  const totalActualizaciones = obras.reduce((acc, o) =>
+    acc + (o.etapas || []).flatMap(e => e.items || []).filter(i => i.ultimoCambio?.timestamp > HACE7).length, 0);
+
   const q = busqueda.toLowerCase().trim();
   const filtradas = q
     ? obras.filter(o =>
@@ -215,95 +313,111 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
 
   const atrasadasCount = obras.filter(o => computeObra(o).atrasado).length;
   const firmaCount = obras.filter(o => computeObra(o).porFirmar).length;
+  const atrasadasNombres = obras.filter(o => computeObra(o).atrasado).map(o => o.obraInfo?.nombre).filter(Boolean);
 
   return (
-    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24 md:pb-8">
+    <div className="min-h-[100dvh] bg-[#0d0b14] pb-24">
+
       {/* Header */}
-      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 md:px-8 pt-7 pb-6">
-        <div className="flex items-center gap-3">
-          <button onClick={onOpenSidebar}
-            className="md:hidden bg-ink-50 dark:bg-ink-800 border-0 rounded-xl p-2 cursor-pointer text-ink-500 dark:text-ink-400 flex-shrink-0">
-            <Menu size={18} />
-          </button>
+      <div className="px-5 md:px-8 pt-6 pb-5">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-1.5 mb-1">
-              <AvanzaLogo size={12} className="text-violet-600 dark:text-violet-400" />
-              <Label className="logo-word">AVANZA</Label>
+            <div className="flex items-center gap-1.5 mb-2">
+              <button onClick={onOpenSidebar} className="md:hidden bg-transparent border-0 cursor-pointer text-white/40 p-0 mr-1">
+                <Menu size={16} />
+              </button>
+              <AvanzaLogo size={11} className="text-violet-400" />
+              <span className="text-[10px] font-black tracking-[0.15em] uppercase text-violet-400">AVANZA</span>
             </div>
-            <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-none">Mis Obras</div>
-            <div className="text-sm text-ink-500 dark:text-ink-400 mt-1">{obras.length} proyecto{obras.length !== 1 ? "s" : ""} · {userNombre}</div>
+            <div className="text-[34px] md:text-[40px] font-black text-white tracking-[-0.04em] leading-none">
+              Tus obras,<br className="sm:hidden" /><span className="sm:inline"> </span>esta semana
+            </div>
+            <div className="text-[13px] text-white/40 mt-2">
+              {obras.length} obra{obras.length !== 1 ? "s" : ""}
+              {totalActualizaciones > 0 && ` · ${totalActualizaciones} actualización${totalActualizaciones !== 1 ? "es" : ""}`}
+              {" · "}{hoyLabel}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+            <button onClick={() => setSearchOpen(v => !v)}
+              className="border border-white/15 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl px-3 py-2 text-[12px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5">
+              <Search size={12} />
+            </button>
+            <button onClick={() => setVistaLista(v => !v)}
+              className="border border-white/15 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl px-3 py-2 text-[12px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5">
+              {vistaLista ? <LayoutGrid size={13} /> : <List size={13} />}
+              {vistaLista ? "Grid" : "Lista"}
+            </button>
+            <button onClick={() => setModal(true)}
+              className="bg-white text-[#0d0b14] font-black text-[12px] rounded-xl px-3.5 py-2 flex items-center gap-1.5 border-0 cursor-pointer hover:bg-white/90 transition-colors">
+              <Plus size={13} /> Nueva obra
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Alert ribbon */}
-      {(atrasadasCount > 0 || firmaCount > 0) && (
-        <div className="px-3.5 md:px-8 pt-3 flex gap-2 flex-wrap">
-          {atrasadasCount > 0 && (
-            <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
-              <AlertTriangle size={12} /> {atrasadasCount} obra{atrasadasCount !== 1 ? "s" : ""} atrasada{atrasadasCount !== 1 ? "s" : ""}
-            </div>
-          )}
-          {firmaCount > 0 && (
-            <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
-              <FileCheck size={12} /> {firmaCount} con firma pendiente
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Search */}
-      {obras.length > 0 && (
-        <div className="px-3.5 md:px-8 pt-3 pb-1">
-          <div className="relative">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400 dark:text-ink-500 pointer-events-none" />
+        {/* Search bar (expandible) */}
+        {searchOpen && (
+          <div className="relative mt-4">
+            <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
             <input
+              autoFocus
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
               placeholder="Buscar por obra, cliente o dirección..."
-              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900 text-sm text-ink dark:text-ink-50 placeholder-ink-400 outline-none focus:border-violet-500 transition-colors"
+              className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-white/25 outline-none focus:border-violet-500/60 transition-colors"
             />
             {busqueda && (
               <button onClick={() => setBusqueda("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 bg-transparent border-0 cursor-pointer p-0.5">
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 bg-transparent border-0 cursor-pointer p-0.5">
                 <X size={13} />
               </button>
             )}
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Alert strip */}
+        {(atrasadasCount > 0 || firmaCount > 0) && (
+          <div className="flex gap-2 flex-wrap mt-4">
+            {atrasadasCount > 0 && (
+              <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 rounded-full px-3.5 py-2 text-[12px] font-semibold text-red-400">
+                <span className="text-[9px]">●</span>
+                <span>{atrasadasCount} obra{atrasadasCount !== 1 ? "s" : ""} con rubros atrasados:</span>
+                <span className="font-black text-red-300">{atrasadasNombres.join(" · ")}</span>
+              </div>
+            )}
+            {firmaCount > 0 && (
+              <div className="flex items-center gap-2 bg-amber-400/10 border border-amber-400/25 rounded-full px-3.5 py-2 text-[12px] font-semibold text-amber-400">
+                <FileCheck size={11} />
+                {firmaCount} conformidad{firmaCount !== 1 ? "es" : ""} por firmar
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Grid */}
-      <div className="px-3.5 md:px-8 pt-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:items-start">
+      <div className={`px-5 md:px-8 ${vistaLista ? "flex flex-col gap-3" : "md:grid md:grid-cols-2 md:gap-4 md:items-start"}`}>
         {obras.length === 0 && (
-          <div className="text-center py-16 px-5">
-            <Building2 size={44} className="text-ink-200 dark:text-ink-700 mx-auto mb-4" />
-            <div className="font-bold text-base text-ink dark:text-ink-50 mb-1.5 tracking-tight">Sin obras todavía</div>
-            <div className="text-sm text-ink-500 dark:text-ink-400">Creá la primera con el botón de abajo.</div>
+          <div className="text-center py-20 px-5">
+            <Building2 size={44} className="text-white/10 mx-auto mb-4" />
+            <div className="font-bold text-base text-white/60 mb-1.5">Sin obras todavía</div>
+            <div className="text-sm text-white/30">Creá la primera con el botón de arriba.</div>
           </div>
         )}
 
         {obras.length > 0 && sorted.length === 0 && (
-          <div className="text-center py-12 px-5 col-span-3">
-            <Search size={32} className="text-ink-200 dark:text-ink-700 mx-auto mb-3" />
-            <div className="font-bold text-sm text-ink dark:text-ink-50 mb-1">Sin resultados</div>
-            <div className="text-xs text-ink-400 dark:text-ink-500">Probá con otro nombre o cliente.</div>
+          <div className="text-center py-12 px-5 col-span-2">
+            <Search size={32} className="text-white/10 mx-auto mb-3" />
+            <div className="font-bold text-sm text-white/60 mb-1">Sin resultados</div>
+            <div className="text-xs text-white/30">Probá con otro nombre o cliente.</div>
           </div>
         )}
 
         {sorted.map(({ obra, stats }) => (
-          <div key={obra.id} className="mb-2.5 md:mb-0">
+          <div key={obra.id} className="mb-3 md:mb-0">
             <StoryCard obra={obra} stats={stats} onSelect={onSelect} onEliminar={o => setConfirmEl(o)} />
           </div>
         ))}
-      </div>
-
-      {/* FAB */}
-      <div className="fixed bottom-6 right-5">
-        <button onClick={() => setModal(true)}
-          className="bg-ink dark:bg-white text-white dark:text-ink font-bold text-sm rounded-2xl px-5 py-3.5 flex items-center gap-2 border-0 cursor-pointer shadow-fab hover:shadow-fab-hover hover:scale-105 active:scale-[.97] transition-all duration-150">
-          <Plus size={16} /> Nueva obra
-        </button>
       </div>
 
       {/* New obra modal */}
