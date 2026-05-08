@@ -451,6 +451,39 @@ export default function App() {
   }
 
   const C = 502.655;
+  const HOY = new Date().toISOString().slice(0, 10);
+
+  const atrasadosCount = rubrosActivos.filter(rid => {
+    const cfg = rubrosConfig[rid] || {};
+    const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+    const rp = its.length ? Math.round(its.filter(i => i.estado === "completado").length / its.length * 100) : 0;
+    return cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
+  }).length;
+
+  const porFirmarCount = etapas.filter(e => {
+    const its = e.items || [];
+    return its.length > 0 && its.every(i => i.estado === "completado") && !e.firma;
+  }).length;
+
+  const proxFin = rubrosActivos
+    .map(rid => rubrosConfig[rid]?.fechaEstimadaFin)
+    .filter(Boolean).filter(d => d >= HOY).sort()[0];
+  const diasAlFin = proxFin ? Math.ceil((new Date(proxFin) - new Date(HOY)) / 86400000) : null;
+
+  const ultimosCompletos = etapas.flatMap(e =>
+    (e.items || [])
+      .filter(i => i.estado === "completado" && i.ultimoCambio?.timestamp)
+      .map(i => ({ tarea: i.tarea, etapa: e.nombre, ts: i.ultimoCambio.timestamp, rubro: e.rubro || obraInfo.rubro }))
+  ).sort((a, b) => b.ts - a.ts).slice(0, 3);
+
+  function relTime(ts) {
+    const mins = Math.round((Date.now() - ts) / 60000);
+    if (mins < 1) return "ahora";
+    if (mins < 60) return `${mins}m`;
+    const hs = Math.floor(mins / 60);
+    if (hs < 24) return `${hs}h`;
+    return `${Math.floor(hs / 24)}d`;
+  }
 
   return (
     <>
@@ -466,10 +499,10 @@ export default function App() {
     )}
     <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24">
 
-      {/* Header */}
+      {/* TopBar */}
       <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <button onClick={() => setObraActiva(null)}
-          className="bg-transparent border-0 text-ink-400 dark:text-ink-500 cursor-pointer flex items-center gap-1 text-xs font-medium p-0">
+          className="bg-transparent border-0 text-ink-400 dark:text-ink-500 cursor-pointer flex items-center gap-1.5 text-xs font-semibold p-0">
           <ArrowLeft size={13} /> Obras
         </button>
         <div className="flex gap-1.5 items-center">
@@ -580,10 +613,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* Obra info */}
-      <div className="px-4 pt-4 pb-4 bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
+      {/* Hero obra header */}
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
         {editInfo ? (
-          <div>
+          <div className="px-4 pt-4 pb-4">
             {[
               ["nombre",       "Nombre de obra"],
               ["cliente",      "Cliente"],
@@ -602,22 +635,59 @@ export default function App() {
           </div>
         ) : (
           <div onClick={() => setEditInfo(true)} className="cursor-pointer">
-            <div className="text-[22px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-snug">{obraInfo.nombre}</div>
-            <div className="flex gap-4 mt-1.5 flex-wrap">
-              {obraInfo.cliente && (
-                <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
-                  <User size={11} /> {obraInfo.cliente}
-                </div>
-              )}
-              {obraInfo.direccion && (
-                <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
-                  <MapPin size={11} /> {obraInfo.direccion}
-                </div>
-              )}
+            <div className="px-4 pt-5 pb-3">
+              <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-tight">{obraInfo.nombre || "Sin nombre"}</div>
+              <div className="flex gap-4 mt-2 flex-wrap">
+                {obraInfo.cliente && (
+                  <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
+                    <User size={11} /> {obraInfo.cliente}
+                  </div>
+                )}
+                {obraInfo.direccion && (
+                  <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
+                    <MapPin size={11} /> {obraInfo.direccion}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-4 pb-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[11px] text-ink-400 dark:text-ink-500">{completados} de {totalItems} ítems completados</div>
+                <div className="text-[13px] font-bold" style={{ color: pColor }}>{pct}%</div>
+              </div>
+              <div className="h-1.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${pct}%`, background: pColor }} />
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Pendientes strip */}
+      {(atrasadosCount > 0 || porFirmarCount > 0 || diasAlFin !== null) && (
+        <div className="px-3.5 pt-3 flex gap-2 flex-wrap">
+          {atrasadosCount > 0 && (
+            <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl px-3 py-2">
+              <AlertCircle size={12} className="text-red-500 flex-shrink-0" />
+              <span className="text-[12px] font-bold text-red-600 dark:text-red-400">{atrasadosCount} atrasado{atrasadosCount > 1 ? "s" : ""}</span>
+            </div>
+          )}
+          {porFirmarCount > 0 && (
+            <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl px-3 py-2">
+              <FileCheck size={12} className="text-amber-500 flex-shrink-0" />
+              <span className="text-[12px] font-bold text-amber-600 dark:text-amber-400">{porFirmarCount} por firmar</span>
+            </div>
+          )}
+          {diasAlFin !== null && (
+            <div className="flex items-center gap-1.5 bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 py-2">
+              <Calendar size={12} className="text-ink-400 dark:text-ink-500 flex-shrink-0" />
+              <span className="text-[12px] font-semibold text-ink-600 dark:text-ink-300">
+                {diasAlFin === 0 ? "Vence hoy" : `${diasAlFin}d al vencimiento`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Zone 1: Hero donut */}
       {(() => {
@@ -635,7 +705,7 @@ export default function App() {
         }) : null;
         const obs = etapas.flatMap(e => e.items || []).filter(i => i.estado === "observacion").length;
         return (
-          <div className="bg-white dark:bg-ink-900 py-6 flex flex-col items-center border-b border-ink-200 dark:border-ink-700">
+          <div className="bg-white dark:bg-ink-900 py-6 flex flex-col items-center border-b border-ink-200 dark:border-ink-700 mt-3">
             <div className="relative w-[200px] h-[200px]">
               <svg width="200" height="200" viewBox="0 0 200 200" className="-rotate-90">
                 <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" strokeWidth="14"
@@ -685,7 +755,11 @@ export default function App() {
 
       {/* Zone 2: Rubro cards */}
       {rubrosActivos.length > 0 && (
-        <div className="px-3.5 pt-4 pb-3 bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
+        <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 mt-3">
+          <div className="px-3.5 pt-3.5 pb-1">
+            <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Rubros</div>
+          </div>
+          <div className="px-3.5 pt-2 pb-3">
           <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
             <button onClick={() => setRubroActivo(null)}
               className={`flex-shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all ${
@@ -711,8 +785,7 @@ export default function App() {
               const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
               const isActive = rubroActivo === rid;
               const cfg = rubrosConfig[rid] || {};
-              const hoy = new Date().toISOString().slice(0, 10);
-              const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < hoy && rp < 100;
+              const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
               const fin = fmtFecha(cfg.fechaEstimadaFin);
               return (
                 <div key={rid} className="flex-shrink-0">
@@ -755,6 +828,7 @@ export default function App() {
               </button>
             )}
           </div>
+          </div>
         </div>
       )}
 
@@ -768,7 +842,10 @@ export default function App() {
       )}
 
       {/* Zone 3: Etapas */}
-      <div className="px-3.5 pt-3">
+      <div className="px-3.5 pt-4 pb-1">
+        <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Etapas</div>
+      </div>
+      <div className="px-3.5 pt-2">
         {etapasFiltradas.map(etapa => {
           const open    = !!expandidas[etapa.id];
           const ep      = pctEtapa(etapa);
@@ -879,6 +956,28 @@ export default function App() {
           );
         })}
       </div>
+
+      {/* Bitácora - última actividad */}
+      {ultimosCompletos.length > 0 && (
+        <div className="px-3.5 pt-2 pb-4">
+          <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-2.5">Última actividad</div>
+          <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+            {ultimosCompletos.map((item, i) => {
+              const rc = RUBROS.find(r => r.id === item.rubro);
+              return (
+                <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i < ultimosCompletos.length - 1 ? "border-b border-ink-100 dark:border-ink-800" : ""}`}>
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex || "#8b5cf6" }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-semibold text-ink dark:text-ink-50 truncate">{item.tarea}</div>
+                    <div className="text-[10px] text-ink-400 dark:text-ink-500">{item.etapa}</div>
+                  </div>
+                  <div className="text-[10px] text-ink-400 dark:text-ink-500 flex-shrink-0">{relTime(item.ts)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Modal agregar rubro */}
       {modalRubro && (
