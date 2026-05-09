@@ -772,22 +772,6 @@ export default function App() {
               {/* Mobile: horizontal scroll */}
               <div className="md:hidden px-3.5 pt-2 pb-3">
                 <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
-                  <button onClick={() => setRubroActivo(null)}
-                    className={`flex-shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all ${
-                      rubroActivo === null
-                        ? "bg-ink dark:bg-ink-50 border-ink dark:border-ink-50"
-                        : "bg-white dark:bg-ink-900 border-ink-200 dark:border-ink-700"
-                    }`}>
-                    <div className={`font-bold text-[13px] mb-2.5 ${rubroActivo === null ? "text-white dark:text-ink" : "text-ink dark:text-ink-50"}`}>
-                      General
-                    </div>
-                    <div className="h-1 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-[width_.4s_ease]"
-                        style={{ width: `${pct}%`, background: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }} />
-                    </div>
-                    <div className="text-[12px] font-bold mt-1.5"
-                      style={{ color: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }}>{pct}%</div>
-                  </button>
                   {rubrosActivos.map(rid => {
                     const rc = RUBROS.find(r => r.id === rid);
                     const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
@@ -841,20 +825,6 @@ export default function App() {
 
               {/* Desktop: lista vertical */}
               <div className="hidden md:block px-3 pt-1 pb-3">
-                <button onClick={() => setRubroActivo(null)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-1 cursor-pointer transition-all border text-left ${
-                    rubroActivo === null
-                      ? "bg-ink dark:bg-ink-100 border-ink dark:border-ink-100"
-                      : "bg-transparent border-transparent hover:bg-ink-50 dark:hover:bg-ink-800"
-                  }`}>
-                  <div className="flex-1 min-w-0">
-                    <div className={`font-bold text-[12px] ${rubroActivo === null ? "text-white dark:text-ink" : "text-ink dark:text-ink-50"}`}>General</div>
-                    <div className="h-1 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden mt-1">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: rubroActivo === null ? "rgba(255,255,255,0.8)" : pColor }} />
-                    </div>
-                  </div>
-                  <span className="text-[12px] font-bold flex-shrink-0" style={{ color: rubroActivo === null ? "rgba(255,255,255,0.9)" : pColor }}>{pct}%</span>
-                </button>
                 {rubrosActivos.map(rid => {
                   const rc = RUBROS.find(r => r.id === rid);
                   const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
