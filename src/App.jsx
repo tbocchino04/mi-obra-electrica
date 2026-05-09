@@ -172,6 +172,7 @@ export default function App() {
   const [rubrosConfig,    setRubrosConfig]    = useState({});
   const [modalFechasRubro, setModalFechasRubro] = useState(null);
   const [menuCompartir, setMenuCompartir] = useState(false);
+  const [rubrosExpandidos, setRubrosExpandidos] = useState({});
   const fileRef        = useRef();
   const saveTimer      = useRef();
   const unsubRef       = useRef();
@@ -944,115 +945,247 @@ export default function App() {
         <div className="flex-1 min-w-0 px-3.5 pt-4 pb-24">
           <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Etapas</div>
           <div className="pt-2">
-            {etapasFiltradas.map(etapa => {
-              const open    = !!expandidas[etapa.id];
-              const ep      = pctEtapa(etapa);
-              const mf      = fmtMonto(etapa);
-              const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
-
-              return (
-                <div key={etapa.id}
-                  style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
-                  className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden`}>
-                  <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
-                    className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
-                        {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
-                      </div>
-                      <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
-                        {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
-                        {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-9 h-9">
-                        <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
-                          <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
-                          <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
-                            stroke={progressStroke(ep)}
-                            strokeDasharray={`${ep * 0.942} 100`}
-                            style={{ transition: "stroke-dasharray .4s ease" }} />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
-                      </div>
-                      <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
-                    </div>
-                  </div>
-
-                  <Accordion open={open}>
-                    <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
-                      <SortableItemList
-                        etapaId={etapa.id}
-                        items={etapa.items}
-                        onReorder={reorderItems}
-                        onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
-                        onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
-                      />
-
-                      {nuevoItemEtapa === etapa.id ? (
-                        <div className="flex gap-1.5 mt-2">
-                          <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
-                            placeholder="Descripción del ítem..."
-                            className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
-                          <button onClick={() => addItem(etapa.id)}
-                            className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold">
-                            <Plus size={14} />
-                          </button>
-                          <button onClick={() => setNuevoItemEtapa(null)}
-                            className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400">
-                            <X size={13} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
-                          className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
-                          <Plus size={13} /> Agregar ítem
-                        </button>
-                      )}
-
-                      <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+            {rubroActivo === null && rubrosActivos.length > 0 ? (
+              /* Vista General: una card colapsable por rubro */
+              rubrosActivos.map(rid => {
+                const rc = RUBROS.find(r => r.id === rid);
+                const rubroEtapas = etapas.filter(e => getRubroDeEtapa(e) === rid);
+                const its = rubroEtapas.flatMap(e => e.items || []);
+                const cp  = its.filter(i => i.estado === "completado").length;
+                const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+                const isOpen = !!rubrosExpandidos[rid];
+                return (
+                  <div key={rid}
+                    className="bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden"
+                    style={{ borderLeftColor: rc?.hex }}>
+                    <div onClick={() => setRubrosExpandidos(p => ({ ...p, [rid]: !p[rid] }))}
+                      className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
+                      <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <Label>Monto etapa</Label>
-                          <div className="flex gap-1.5 flex-1">
-                            <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })}
-                              placeholder="0"
-                              className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
-                            <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
-                              className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
-                                (etapa.moneda || "ARS") === "USD"
-                                  ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                                  : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
-                              }`}>
-                              {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
+                          <div className="font-bold text-[15px] text-ink dark:text-ink-50 tracking-tight">{rc?.label}</div>
+                        </div>
+                        <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                          {cp}/{its.length} completados · {rubroEtapas.length} etapas
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-9 h-9">
+                          <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
+                            <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
+                            <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+                              stroke={progressStroke(rp)}
+                              strokeDasharray={`${rp * 0.942} 100`}
+                              style={{ transition: "stroke-dasharray .4s ease" }} />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{rp}%</div>
+                        </div>
+                        <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${isOpen ? "rotate-180" : ""}`} />
+                      </div>
+                    </div>
+                    <Accordion open={isOpen}>
+                      <div className="border-t border-ink-100 dark:border-ink-800 px-2 pb-2 pt-1">
+                        {rubroEtapas.map(etapa => {
+                          const open = !!expandidas[etapa.id];
+                          const ep   = pctEtapa(etapa);
+                          const mf   = fmtMonto(etapa);
+                          return (
+                            <div key={etapa.id}
+                              className="bg-ink-50 dark:bg-ink-800/50 rounded-xl mb-1.5 overflow-hidden border border-ink-100 dark:border-ink-800">
+                              <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
+                                className="flex items-center px-3 py-3 cursor-pointer select-none hover:bg-ink-100 dark:hover:bg-ink-700/50 transition-colors">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="font-bold text-[13px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
+                                    {etapa.firma && <FileCheck size={11} className="text-emerald-500 flex-shrink-0" />}
+                                  </div>
+                                  <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                                    {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
+                                    {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="relative w-8 h-8">
+                                    <svg viewBox="0 0 38 38" className="-rotate-90 w-8 h-8">
+                                      <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-200 dark:text-ink-700" />
+                                      <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+                                        stroke={progressStroke(ep)}
+                                        strokeDasharray={`${ep * 0.942} 100`}
+                                        style={{ transition: "stroke-dasharray .4s ease" }} />
+                                    </svg>
+                                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+                                  </div>
+                                  <ChevronDown size={15} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+                                </div>
+                              </div>
+                              <Accordion open={open}>
+                                <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
+                                  <SortableItemList
+                                    etapaId={etapa.id}
+                                    items={etapa.items}
+                                    onReorder={reorderItems}
+                                    onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
+                                    onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
+                                  />
+                                  {nuevoItemEtapa === etapa.id ? (
+                                    <div className="flex gap-1.5 mt-2">
+                                      <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
+                                        onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
+                                        placeholder="Descripción del ítem..."
+                                        className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
+                                      <button onClick={() => addItem(etapa.id)} className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold"><Plus size={14} /></button>
+                                      <button onClick={() => setNuevoItemEtapa(null)} className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400"><X size={13} /></button>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
+                                      className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
+                                      <Plus size={13} /> Agregar ítem
+                                    </button>
+                                  )}
+                                  <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+                                    <div className="flex items-center gap-2">
+                                      <Label>Monto etapa</Label>
+                                      <div className="flex gap-1.5 flex-1">
+                                        <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })} placeholder="0"
+                                          className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
+                                        <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
+                                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${(etapa.moneda || "ARS") === "USD" ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400" : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"}`}>
+                                          {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="mt-3">
+                                    {etapa.firma && (
+                                      <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
+                                        <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
+                                          <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">{etapa.firma.firmante} · {etapa.firma.fecha}</div>
+                                          {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
+                                            <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </Accordion>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Accordion>
+                  </div>
+                );
+              })
+            ) : (
+              /* Vista rubro específico o sin rubros: lista plana */
+              etapasFiltradas.map(etapa => {
+                const open    = !!expandidas[etapa.id];
+                const ep      = pctEtapa(etapa);
+                const mf      = fmtMonto(etapa);
+                const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
+                return (
+                  <div key={etapa.id}
+                    style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
+                    className="bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden">
+                    <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
+                      className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
+                          {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
+                        </div>
+                        <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                          {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
+                          {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-9 h-9">
+                          <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
+                            <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
+                            <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+                              stroke={progressStroke(ep)}
+                              strokeDasharray={`${ep * 0.942} 100`}
+                              style={{ transition: "stroke-dasharray .4s ease" }} />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+                        </div>
+                        <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+                      </div>
+                    </div>
+                    <Accordion open={open}>
+                      <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
+                        <SortableItemList
+                          etapaId={etapa.id}
+                          items={etapa.items}
+                          onReorder={reorderItems}
+                          onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
+                          onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
+                        />
+                        {nuevoItemEtapa === etapa.id ? (
+                          <div className="flex gap-1.5 mt-2">
+                            <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
+                              onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
+                              placeholder="Descripción del ítem..."
+                              className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
+                            <button onClick={() => addItem(etapa.id)}
+                              className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold">
+                              <Plus size={14} />
+                            </button>
+                            <button onClick={() => setNuevoItemEtapa(null)}
+                              className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400">
+                              <X size={13} />
                             </button>
                           </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3">
-                        {etapa.firma && (
-                          <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
-                            <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
-                              <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">
-                                {etapa.firma.firmante} · {etapa.firma.fecha}
-                              </div>
-                              {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
-                                <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
-                              )}
+                        ) : (
+                          <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
+                            className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
+                            <Plus size={13} /> Agregar ítem
+                          </button>
+                        )}
+                        <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+                          <div className="flex items-center gap-2">
+                            <Label>Monto etapa</Label>
+                            <div className="flex gap-1.5 flex-1">
+                              <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })}
+                                placeholder="0"
+                                className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
+                              <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
+                                className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+                                  (etapa.moneda || "ARS") === "USD"
+                                    ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                                    : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
+                                }`}>
+                                {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
+                              </button>
                             </div>
                           </div>
-                        )}
+                        </div>
+                        <div className="mt-3">
+                          {etapa.firma && (
+                            <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
+                              <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
+                                <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">
+                                  {etapa.firma.firmante} · {etapa.firma.fecha}
+                                </div>
+                                {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
+                                  <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </Accordion>
-                </div>
-              );
-            })}
+                    </Accordion>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>{/* end right column */}
 
