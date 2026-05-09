@@ -105,7 +105,7 @@ export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = f
 
   return (
     <div className={"vc " + (dark ? "dark" : "")} style={{ background:"var(--bg)", color:"var(--ink)", minHeight:"100dvh", fontFamily:"'Plus Jakarta Sans', system-ui, sans-serif" }}>
-      <div style={{ maxWidth:680, margin:"0 auto", padding:"28px 20px 64px" }}>
+      <div style={{ maxWidth:680, margin:"0 auto", padding:"20px 20px 64px" }}>
 
         {/* Top nav */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:28 }}>
@@ -124,16 +124,35 @@ export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = f
           </button>
         </div>
 
-        {/* Hero title */}
-        <h1 style={{ fontSize:34, fontWeight:800, letterSpacing:"-0.035em", margin:0, lineHeight:1.05, color:"var(--ink)" }}>
-          {obraInfo.nombre}
-        </h1>
-        {obraInfo.cliente && (
-          <div style={{ fontSize:13, color:"var(--ink-500)", marginTop:5 }}>{obraInfo.cliente}</div>
-        )}
-        {obraInfo.direccion && (
-          <div style={{ fontSize:12, color:"var(--ink-400)", marginTop:3 }}>{obraInfo.direccion}</div>
-        )}
+        {/* Hero */}
+        <div style={{ position:"relative", height:200, borderRadius:18, overflow:"hidden", marginBottom:20 }}>
+          {obraInfo.fotoCover
+            ? <img src={obraInfo.fotoCover} alt="" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+            : <div style={{ position:"absolute", inset:0, background:"linear-gradient(135deg, #5b21b6 0%, #2e1065 100%)" }} />
+          }
+          <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.25) 55%, rgba(0,0,0,0.1) 100%)" }} />
+          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"20px 24px" }}>
+            <div style={{ fontSize:22, fontWeight:800, color:"white", letterSpacing:"-0.03em", lineHeight:1.1 }}>
+              {obraInfo.nombre}
+            </div>
+            <div style={{ display:"flex", gap:12, marginTop:5, flexWrap:"wrap" }}>
+              {obraInfo.cliente && (
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>{obraInfo.cliente}</div>
+              )}
+              {obraInfo.direccion && (
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>{obraInfo.direccion}</div>
+              )}
+            </div>
+          </div>
+          <div style={{ position:"absolute", top:16, right:20, textAlign:"right" }}>
+            <div style={{ fontSize:44, fontWeight:800, color:"white", lineHeight:0.9, letterSpacing:"-0.04em", textShadow:"0 2px 16px rgba(0,0,0,0.5)" }}>
+              {totalPct}%
+            </div>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:4, fontWeight:600 }}>
+              {completados}/{totalItems} ítems
+            </div>
+          </div>
+        </div>
 
         {/* Big % card */}
         <div style={{ marginTop:22, padding:"22px 24px", background:"var(--card)", border:"1px solid var(--border)", borderRadius:18, display:"flex", gap:24, alignItems:"center" }}>
