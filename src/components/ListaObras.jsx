@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Building2, Plus, User, MapPin, Trash2, Menu, Search, X, FileCheck, Clock, Calendar, LayoutGrid, List } from "lucide-react";
+import { useState, useRef } from "react";
+import { Building2, Plus, User, MapPin, Trash2, Menu, Search, X, FileCheck, Clock, Calendar, LayoutGrid, List, Camera, Loader2 } from "lucide-react";
 import AvanzaLogo from "./AvanzaLogo";
-import { crearObra } from "../firebase";
+import { crearObra, guardarObra } from "../firebase";
 import { ETAPAS_DEFAULT, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "../constants/data";
 import { SheetHandle, ModalConfirm } from "./ui";
+import { compressImage, validateImage } from "../utils/imageUtils";
 
 const HOY = new Date().toISOString().slice(0, 10);
 const HACE7 = Date.now() - 7 * 24 * 3600 * 1000;
@@ -87,7 +88,7 @@ function computeObra(obra) {
   return { pct, total, comp, rubrosData, atrasado, porFirmar, porFirmarCount, ultimaActividad, obsCount, actividadSemana, proxFin };
 }
 
-function StoryCard({ obra, stats, onSelect, onEliminar }) {
+function StoryCard({ obra, stats, onSelect, onEliminar, onUploadCover, isUploading }) {
   const { pct, rubrosData, atrasado, porFirmar, porFirmarCount, ultimaActividad, obsCount, actividadSemana, proxFin } = stats;
   const info = obra.obraInfo || {};
   const etapas = obra.etapas || [];
@@ -108,11 +109,17 @@ function StoryCard({ obra, stats, onSelect, onEliminar }) {
     <div className="bg-[#13111f] dark:bg-[#13111f] rounded-2xl overflow-hidden">
       {/* Photo/gradient header */}
       <div className="relative h-44 overflow-hidden cursor-pointer" onClick={() => onSelect(obra)}>
-        {/* Color blobs */}
-        <div className="absolute -top-8 -right-8 w-44 h-44 rounded-full blur-3xl opacity-50 pointer-events-none"
-          style={{ background: blob1 }} />
-        <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full blur-3xl opacity-35 pointer-events-none"
-          style={{ background: blob2 }} />
+        {/* Real cover photo or color blobs */}
+        {info.fotoCover ? (
+          <img src={info.fotoCover} alt="portada" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        ) : (
+          <>
+            <div className="absolute -top-8 -right-8 w-44 h-44 rounded-full blur-3xl opacity-50 pointer-events-none"
+              style={{ background: blob1 }} />
+            <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full blur-3xl opacity-35 pointer-events-none"
+              style={{ background: blob2 }} />
+          </>
+        )}
         {/* Bottom gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#13111f] via-[#13111f]/40 to-transparent pointer-events-none" />
 
@@ -134,6 +141,16 @@ function StoryCard({ obra, stats, onSelect, onEliminar }) {
             <FileCheck size={9} /> FIRMA PENDIENTE
           </div>
         )}
+
+        {/* Camera button */}
+        <button
+          onClick={e => { e.stopPropagation(); onUploadCover(obra); }}
+          disabled={isUploading}
+          className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/50 border border-white/20 flex items-center justify-center text-white/70 hover:text-white hover:bg-black/70 transition-colors cursor-pointer disabled:opacity-50 z-10">
+          {isUploading
+            ? <Loader2 size={13} className="animate-spin" />
+            : <Camera size={13} />}
+        </button>
 
         {/* Name + % */}
         <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 flex items-end justify-between">
@@ -266,6 +283,37 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
   const [busqueda,     setBusqueda]     = useState("");
   const [vistaLista,   setVistaLista]   = useState(false);
   const [searchOpen,   setSearchOpen]   = useState(false);
+  const [uploadingFor, setUploadingFor] = useState(null);
+  const coverFileRef  = useRef();
+  const pendingObra   = useRef(null);
+
+  function handleUploadCover(obra) {
+    pendingObra.current = obra;
+    coverFileRef.current.click();
+  }
+
+  async function handleCoverFile(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    const obra = pendingObra.current;
+    pendingObra.current = null;
+    if (!file || !obra) return;
+    try { validateImage(file); } catch { return; }
+    setUploadingFor(obra.id);
+    try {
+      const dataUrl = await new Promise(res => {
+        const r = new FileReader();
+        r.onload = ev => res(ev.target.result);
+        r.readAsDataURL(file);
+      });
+      const compressed = await compressImage(dataUrl);
+      await guardarObra(obra.id, { obraInfo: { ...obra.obraInfo, fotoCover: compressed } });
+    } catch (err) {
+      console.error("Error subiendo portada:", err);
+    } finally {
+      setUploadingFor(null);
+    }
+  }
 
   async function crear() {
     if (!nombre.trim()) return;
@@ -415,7 +463,13 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
 
         {sorted.map(({ obra, stats }) => (
           <div key={obra.id} className="mb-3 md:mb-0">
-            <StoryCard obra={obra} stats={stats} onSelect={onSelect} onEliminar={o => setConfirmEl(o)} />
+            <StoryCard
+              obra={obra} stats={stats}
+              onSelect={onSelect}
+              onEliminar={o => setConfirmEl(o)}
+              onUploadCover={handleUploadCover}
+              isUploading={uploadingFor === obra.id}
+            />
           </div>
         ))}
       </div>
@@ -484,6 +538,8 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
           </div>
         </div>
       )}
+
+      <input ref={coverFileRef} type="file" accept="image/*" className="hidden" onChange={handleCoverFile} />
 
       {confirmEl && (
         <ModalConfirm
