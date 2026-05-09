@@ -10,7 +10,7 @@ import {
   guardarObra, escucharObra, escucharObras,
   crearObra, eliminarObra, onAuth, obtenerPerfil, enviarVerificacion, verificarEmailToken,
 } from "./firebase";
-import { RUBROS, TEMPLATES, ESTADO_CONFIG } from "./constants/data";
+import { RUBROS, TEMPLATES, ESTADO_CONFIG, TIPOS_PROYECTO } from "./constants/data";
 import { useTheme } from "./hooks/useTheme";
 import { Label, SheetHandle, Spinner, Accordion, ModalConfirm } from "./components/ui";
 import { SortableItemList } from "./components/SortableItem";
@@ -173,6 +173,7 @@ export default function App() {
   const [modalFechasRubro, setModalFechasRubro] = useState(null);
   const [menuCompartir, setMenuCompartir] = useState(false);
   const [rubrosExpandidos, setRubrosExpandidos] = useState({});
+  const [tabActiva,        setTabActiva]        = useState("resumen");
   const fileRef        = useRef();
   const saveTimer      = useRef();
   const unsubRef       = useRef();
@@ -486,6 +487,101 @@ export default function App() {
     return `${Math.floor(hs / 24)}d`;
   }
 
+  function renderEtapaAccordion(etapa, isFlat = false) {
+    const open = !!expandidas[etapa.id];
+    const ep   = pctEtapa(etapa);
+    const mf   = fmtMonto(etapa);
+    const eRubroC = isFlat ? RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro)) : null;
+    return (
+      <div key={etapa.id}
+        style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
+        className={isFlat
+          ? "bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden"
+          : "bg-ink-50 dark:bg-ink-800/50 rounded-xl mb-1.5 overflow-hidden border border-ink-100 dark:border-ink-800"}>
+        <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
+          className="flex items-center px-3 py-3 cursor-pointer select-none hover:bg-ink-100 dark:hover:bg-ink-700/50 transition-colors">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <div className={`font-bold text-ink dark:text-ink-50 tracking-tight ${isFlat ? "text-[14px]" : "text-[13px]"}`}>{etapa.nombre}</div>
+              {etapa.firma && <FileCheck size={isFlat ? 12 : 11} className="text-emerald-500 flex-shrink-0" />}
+            </div>
+            <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+              {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
+              {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`relative ${isFlat ? "w-9 h-9" : "w-8 h-8"}`}>
+              <svg viewBox="0 0 38 38" className={`-rotate-90 ${isFlat ? "w-9 h-9" : "w-8 h-8"}`}>
+                <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3"
+                  className={isFlat ? "text-ink-100 dark:text-ink-800" : "text-ink-200 dark:text-ink-700"} />
+                <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+                  stroke={progressStroke(ep)}
+                  strokeDasharray={`${ep * 0.942} 100`}
+                  style={{ transition: "stroke-dasharray .4s ease" }} />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+            </div>
+            <ChevronDown size={isFlat ? 17 : 15} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+          </div>
+        </div>
+        <Accordion open={open}>
+          <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
+            <SortableItemList
+              etapaId={etapa.id}
+              items={etapa.items}
+              onReorder={reorderItems}
+              onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
+              onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
+            />
+            {nuevoItemEtapa === etapa.id ? (
+              <div className="flex gap-1.5 mt-2">
+                <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
+                  placeholder="Descripción del ítem..."
+                  className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
+                <button onClick={() => addItem(etapa.id)} className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold"><Plus size={14} /></button>
+                <button onClick={() => setNuevoItemEtapa(null)} className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400"><X size={13} /></button>
+              </div>
+            ) : (
+              <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
+                className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
+                <Plus size={13} /> Agregar ítem
+              </button>
+            )}
+            <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+              <div className="flex items-center gap-2">
+                <Label>Monto etapa</Label>
+                <div className="flex gap-1.5 flex-1">
+                  <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })} placeholder="0"
+                    className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
+                  <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${(etapa.moneda || "ARS") === "USD" ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400" : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"}`}>
+                    {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              {etapa.firma && (
+                <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
+                  <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
+                    <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">{etapa.firma.firmante} · {etapa.firma.fecha}</div>
+                    {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
+                      <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </Accordion>
+      </div>
+    );
+  }
+
   return (
     <>
     {saveError && (
@@ -614,81 +710,127 @@ export default function App() {
         </div>
       </div>
 
-      {/* Layout: sidebar fija en desktop, stacked en mobile */}
-      <div className="md:flex md:items-start">
-
-        {/* LEFT: panel de info */}
-        <div className="md:w-[268px] md:flex-shrink-0 md:sticky md:top-[49px] md:h-[calc(100dvh-49px)] md:overflow-y-auto md:border-r md:border-ink-200 md:dark:border-ink-700 md:bg-white md:dark:bg-ink-900">
-
-          {/* Hero obra header */}
-          <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
-            {editInfo ? (
-              <div className="px-4 pt-4 pb-4">
-                {[
-                  ["nombre",       "Nombre de obra"],
-                  ["cliente",      "Cliente"],
-                  ["direccion",    "Dirección"],
-                  ["clienteEmail", "Email del cliente"],
-                  ["adminEmail",   "Tu email (admin)"],
-                ].map(([k, ph]) => (
-                  <input key={k} value={obraInfo[k] || ""} placeholder={ph}
-                    onChange={e => setObraInfo(p => ({ ...p, [k]: e.target.value }))}
-                    className={`bg-transparent border-0 border-b border-ink-200 dark:border-ink-700 text-ink dark:text-ink-50 w-full mb-2 py-1 outline-none block ${k === "nombre" ? "text-lg font-bold tracking-tight" : "text-sm"}`} />
-                ))}
-                <button onClick={() => setEditInfo(false)}
-                  className="mt-2 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border-0 rounded-lg px-4 py-1.5 font-bold cursor-pointer text-xs">
-                  Guardar
-                </button>
-              </div>
-            ) : (
-              <div onClick={() => setEditInfo(true)} className="cursor-pointer">
-                <div className="px-4 pt-4 pb-2">
-                  <div className="text-[22px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-tight">{obraInfo.nombre || "Sin nombre"}</div>
-                  <div className="flex gap-3 mt-1.5 flex-wrap">
-                    {obraInfo.cliente && (
-                      <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
-                        <User size={11} /> {obraInfo.cliente}
-                      </div>
-                    )}
-                    {obraInfo.direccion && (
-                      <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
-                        <MapPin size={11} /> {obraInfo.direccion}
-                      </div>
-                    )}
-                  </div>
+      {/* Hero */}
+      <div className="relative overflow-hidden" style={{ height: "200px" }}>
+        {obraInfo.fotoCover
+          ? <img src={obraInfo.fotoCover} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          : <div className="absolute inset-0 bg-gradient-to-br from-violet-700 to-violet-950" />
+        }
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+        <div className="absolute inset-0 flex flex-col justify-end px-5 pb-5">
+          {obraInfo.tipo && (
+            <div className="inline-flex self-start mb-2 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold tracking-widest uppercase">
+              {TIPOS_PROYECTO.find(t => t.id === obraInfo.tipo)?.label || obraInfo.tipo}
+            </div>
+          )}
+          <button onClick={() => setEditInfo(true)} className="text-left bg-transparent border-0 p-0 cursor-pointer">
+            <div className="text-white font-bold text-[22px] tracking-tight leading-tight">
+              {obraInfo.nombre || "Sin nombre"}
+            </div>
+            <div className="flex items-center gap-3 mt-1 flex-wrap">
+              {obraInfo.cliente && (
+                <div className="flex items-center gap-1 text-white/70 text-[12px]">
+                  <User size={10} /> {obraInfo.cliente}
                 </div>
-                <div className="px-4 pb-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="text-[11px] text-ink-400 dark:text-ink-500">{completados} de {totalItems} ítems</div>
-                    <div className="text-[12px] font-bold" style={{ color: pColor }}>{pct}%</div>
-                  </div>
-                  <div className="h-1.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${pct}%`, background: pColor }} />
-                  </div>
+              )}
+              {obraInfo.direccion && (
+                <div className="flex items-center gap-1 text-white/70 text-[12px]">
+                  <MapPin size={10} /> {obraInfo.direccion}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          </button>
+        </div>
+        <div className="absolute top-4 right-5 text-right">
+          <div className="text-[42px] font-bold text-white leading-none tracking-[-0.04em]"
+            style={{ textShadow: "0 2px 16px rgba(0,0,0,0.5)" }}>{pct}%</div>
+          <div className="text-[11px] text-white/60 font-semibold mt-0.5">{completados}/{totalItems} ítems</div>
+        </div>
+      </div>
+
+      {/* Edit info modal */}
+      {editInfo && (
+        <div className="fixed inset-0 bg-ink/60 flex items-end md:items-center md:justify-center z-[100]"
+          onClick={e => { if (e.target === e.currentTarget) setEditInfo(false); }}>
+          <div className="bg-white dark:bg-ink-900 rounded-t-3xl md:rounded-3xl px-5 pt-5 pb-11 md:pb-6 w-full md:max-w-sm border border-ink-200 dark:border-ink-700 border-b-0 md:border animate-[slideUp_.22s_ease-out_both]">
+            <SheetHandle />
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-bold text-ink dark:text-ink-50 text-[15px]">Editar obra</div>
+              <button onClick={() => setEditInfo(false)}
+                className="bg-ink-50 dark:bg-ink-800 border-0 rounded-full w-8 h-8 cursor-pointer text-ink-400 flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+            {[
+              ["nombre",       "Nombre de obra"],
+              ["cliente",      "Cliente"],
+              ["direccion",    "Dirección"],
+              ["clienteEmail", "Email del cliente"],
+              ["adminEmail",   "Tu email (admin)"],
+            ].map(([k, ph]) => (
+              <input key={k} value={obraInfo[k] || ""} placeholder={ph}
+                onChange={e => setObraInfo(p => ({ ...p, [k]: e.target.value }))}
+                className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl text-ink dark:text-ink-50 w-full mb-2 px-3 py-2.5 outline-none block text-sm" />
+            ))}
+            <button onClick={() => setEditInfo(false)}
+              className="mt-2 w-full bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl py-3 font-bold cursor-pointer text-sm">
+              Listo
+            </button>
           </div>
+        </div>
+      )}
 
-          {/* Pendientes strip */}
+      {/* Tabs */}
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 sticky top-[49px] z-[9]">
+        <div className="flex overflow-x-auto scrollbar-hide">
+          {[
+            { id: "resumen",  label: "Resumen" },
+            { id: "rubros",   label: "Rubros",   badge: rubrosActivos.length > 0 ? rubrosActivos.length : null },
+            { id: "bitacora", label: "Bitácora", badge: ultimosCompletos.length > 0 ? ultimosCompletos.length : null },
+            { id: "fotos",    label: "Fotos" },
+          ].map(tab => (
+            <button key={tab.id}
+              onClick={() => setTabActiva(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-3.5 text-[13px] font-semibold border-0 bg-transparent cursor-pointer whitespace-nowrap border-b-2 transition-colors -mb-px ${
+                tabActiva === tab.id
+                  ? "border-violet-500 text-violet-600 dark:text-violet-400"
+                  : "border-transparent text-ink-400 dark:text-ink-500 hover:text-ink dark:hover:text-ink-200"
+              }`}>
+              {tab.label}
+              {tab.badge && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  tabActiva === tab.id
+                    ? "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400"
+                    : "bg-ink-100 dark:bg-ink-800 text-ink-400 dark:text-ink-500"
+                }`}>{tab.badge}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab: Resumen */}
+      {tabActiva === "resumen" && (
+        <div className="px-4 pt-5 pb-24 max-w-5xl mx-auto">
+
           {(atrasadosCount > 0 || porFirmarCount > 0 || diasAlFin !== null) && (
-            <div className="px-3.5 pt-2.5 pb-2.5 flex gap-1.5 flex-wrap bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
+            <div className="flex gap-2 flex-wrap mb-5">
               {atrasadosCount > 0 && (
-                <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl px-2.5 py-1.5">
+                <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl px-3 py-2">
                   <AlertCircle size={11} className="text-red-500 flex-shrink-0" />
-                  <span className="text-[11px] font-bold text-red-600 dark:text-red-400">{atrasadosCount} atrasado{atrasadosCount > 1 ? "s" : ""}</span>
+                  <span className="text-[12px] font-bold text-red-600 dark:text-red-400">{atrasadosCount} atrasado{atrasadosCount > 1 ? "s" : ""}</span>
                 </div>
               )}
               {porFirmarCount > 0 && (
-                <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl px-2.5 py-1.5">
+                <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl px-3 py-2">
                   <FileCheck size={11} className="text-amber-500 flex-shrink-0" />
-                  <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">{porFirmarCount} por firmar</span>
+                  <span className="text-[12px] font-bold text-amber-600 dark:text-amber-400">{porFirmarCount} por firmar</span>
                 </div>
               )}
               {diasAlFin !== null && (
-                <div className="flex items-center gap-1.5 bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-2.5 py-1.5">
-                  <Calendar size={11} className="text-ink-400 dark:text-ink-500 flex-shrink-0" />
-                  <span className="text-[11px] font-semibold text-ink-600 dark:text-ink-300">
+                <div className="flex items-center gap-1.5 bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 py-2">
+                  <Calendar size={11} className="text-ink-400 flex-shrink-0" />
+                  <span className="text-[12px] font-semibold text-ink-600 dark:text-ink-300">
                     {diasAlFin === 0 ? "Vence hoy" : `${diasAlFin}d al vencimiento`}
                   </span>
                 </div>
@@ -696,87 +838,227 @@ export default function App() {
             </div>
           )}
 
-          {/* Donut compacto + stats en fila */}
-          {(() => {
-            let accum = 0;
-            const segs = rubrosActivos.length > 0 ? rubrosActivos.map(rid => {
-              const rc   = RUBROS.find(r => r.id === rid);
-              const its  = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
-              const cp   = its.filter(i => i.estado === "completado").length;
-              const w    = totalItems > 0 ? its.length / totalItems : (1 / rubrosActivos.length);
-              const seg  = w * C;
-              const fill = seg * (its.length ? cp / its.length : 0);
-              const off  = accum;
-              accum += seg;
-              return { rid, rc, seg, fill, off };
-            }) : null;
-            const obs = etapas.flatMap(e => e.items || []).filter(i => i.estado === "observacion").length;
-            return (
-              <div className="bg-white dark:bg-ink-900 px-4 py-3.5 flex items-center gap-4 border-b border-ink-200 dark:border-ink-700 mt-3 md:mt-0">
-                <div className="relative w-[96px] h-[96px] flex-shrink-0">
-                  <svg width="96" height="96" viewBox="0 0 200 200" className="-rotate-90">
-                    <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" strokeWidth="16"
-                      className="text-ink-100 dark:text-ink-800" />
-                    {segs ? segs.map(({ rid, rc, seg, fill, off }) => (
-                      <g key={rid}>
-                        <circle cx="100" cy="100" r="80" fill="none" strokeWidth="16"
-                          stroke={(rc?.hex || "#8b5cf6") + "33"}
-                          strokeDasharray={`${seg} ${C}`}
-                          strokeDashoffset={-off} />
-                        {fill > 0.5 && (
-                          <circle cx="100" cy="100" r="80" fill="none" strokeWidth="16"
-                            stroke={rc?.hex || "#8b5cf6"}
-                            strokeDasharray={`${fill} ${C}`}
-                            strokeDashoffset={-off} />
+          <div className="md:grid md:grid-cols-[1fr_300px] md:gap-4">
+
+            {/* Left: Cómo va por rubro */}
+            <div className="mb-4 md:mb-0">
+              <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+                <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-ink-100 dark:border-ink-800">
+                  <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Cómo va por rubro</div>
+                  {rubrosActivos.length < RUBROS.length && (
+                    <button onClick={() => setModalRubro(true)}
+                      className="flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold bg-transparent border-0 cursor-pointer hover:opacity-70">
+                      <Plus size={11} /> Agregar
+                    </button>
+                  )}
+                </div>
+                {rubrosActivos.length === 0 ? (
+                  <div className="px-4 py-8 flex flex-col items-center gap-3">
+                    <div className="text-sm text-ink-400 dark:text-ink-500">No hay rubros cargados</div>
+                    <button onClick={() => setModalRubro(true)}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors text-sm font-semibold">
+                      <Plus size={14} /> Agregar rubro
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-ink-100 dark:divide-ink-800">
+                    {rubrosActivos.map(rid => {
+                      const rc = RUBROS.find(r => r.id === rid);
+                      const rubroEtapas = etapas.filter(e => getRubroDeEtapa(e) === rid);
+                      const its = rubroEtapas.flatMap(e => e.items || []);
+                      const cp = its.filter(i => i.estado === "completado").length;
+                      const obs = its.filter(i => i.estado === "observacion").length;
+                      const rp = its.length ? Math.round(cp / its.length * 100) : 0;
+                      const cfg = rubrosConfig[rid] || {};
+                      const fin = fmtFecha(cfg.fechaEstimadaFin);
+                      const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
+                      const firmaCount = rubroEtapas.filter(e => e.firma).length;
+                      const pColor = progressStroke(rp);
+                      const inProgress = rubroEtapas.filter(e => { const ep = pctEtapa(e); return ep > 0 && ep < 100; });
+                      const activeEtapa = inProgress[0] || rubroEtapas[rubroEtapas.length - 1];
+                      return (
+                        <div key={rid} className="px-4 py-4">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
+                              style={{ background: (rc?.hex || "#8b5cf6") + "22" }}>
+                              <div className="w-3 h-3 rounded-full" style={{ background: rc?.hex }} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-[13px] text-ink dark:text-ink-50">{rc?.label}</span>
+                                {obs > 0 && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 dark:bg-red-950/30 text-red-500">{obs} obs.</span>
+                                )}
+                                {firmaCount > 0 && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">{firmaCount} firma{firmaCount > 1 ? "s" : ""}</span>
+                                )}
+                              </div>
+                              {fin && (
+                                <div className={`text-[11px] mt-0.5 ${vencido ? "text-red-500 font-semibold" : "text-ink-400 dark:text-ink-500"}`}>
+                                  Fin est. {fin}{vencido ? " · Atrasado" : ""}
+                                </div>
+                              )}
+                              {activeEtapa && (
+                                <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5 truncate">{activeEtapa.nombre}</div>
+                              )}
+                            </div>
+                            <div className="flex-shrink-0 text-right">
+                              <div className="text-[16px] font-bold leading-none" style={{ color: pColor }}>{rp}%</div>
+                              <div className="text-[10px] text-ink-400 dark:text-ink-500 mt-0.5">{cp}/{its.length}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-1.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${rp}%`, background: pColor }} />
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button onClick={() => setModalFechasRubro(rid)}
+                                className="text-ink-300 dark:text-ink-600 hover:text-violet-500 bg-transparent border-0 cursor-pointer p-1 transition-colors">
+                                <Calendar size={11} />
+                              </button>
+                              <button onClick={() => { setTabActiva("rubros"); setRubroActivo(rid); }}
+                                className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold bg-transparent border-0 cursor-pointer hover:opacity-70 px-1">
+                                Ver →
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Pendientes + Resumen */}
+            <div className="flex flex-col gap-4">
+              {(porFirmarCount > 0 || atrasadosCount > 0) && (
+                <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+                  <div className="px-4 pt-4 pb-2 border-b border-ink-100 dark:border-ink-800">
+                    <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Pendientes</div>
+                  </div>
+                  <div className="divide-y divide-ink-100 dark:divide-ink-800">
+                    {rubrosActivos.filter(rid => {
+                      const cfg = rubrosConfig[rid] || {};
+                      const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+                      const rp = its.length ? Math.round(its.filter(i => i.estado === "completado").length / its.length * 100) : 0;
+                      return cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
+                    }).map(rid => {
+                      const rc = RUBROS.find(r => r.id === rid);
+                      return (
+                        <div key={rid} className="flex items-center gap-3 px-4 py-3">
+                          <AlertCircle size={13} className="text-red-400 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[12px] font-semibold text-ink dark:text-ink-50">{rc?.label}</div>
+                            <div className="text-[11px] text-red-500">Fecha vencida</div>
+                          </div>
+                          <button onClick={() => { setTabActiva("rubros"); setRubroActivo(rid); }}
+                            className="text-[11px] text-violet-600 dark:text-violet-400 font-bold bg-transparent border-0 cursor-pointer">
+                            Ver →
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {etapas.filter(e => {
+                      const its = e.items || [];
+                      return its.length > 0 && its.every(i => i.estado === "completado") && !e.firma;
+                    }).slice(0, 3).map(e => (
+                      <div key={e.id} className="flex items-center gap-3 px-4 py-3">
+                        <FileCheck size={13} className="text-amber-400 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12px] font-semibold text-ink dark:text-ink-50 truncate">{e.nombre}</div>
+                          <div className="text-[11px] text-amber-500 dark:text-amber-400">Por firmar</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+                <div className="px-4 pt-4 pb-2 border-b border-ink-100 dark:border-ink-800">
+                  <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Resumen</div>
+                </div>
+                <div className="divide-y divide-ink-100 dark:divide-ink-800">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="text-[12px] text-ink-400 dark:text-ink-500">Avance general</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-[14px] font-bold" style={{ color: pColor }}>{pct}%</div>
+                      <div className="text-[11px] text-ink-400 dark:text-ink-500">{completados}/{totalItems}</div>
+                    </div>
+                  </div>
+                  {proxFin ? (
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="text-[12px] text-ink-400 dark:text-ink-500">Fin estimado</div>
+                      <div className="text-right">
+                        <div className="text-[13px] font-bold text-ink dark:text-ink-50">{fmtFecha(proxFin)}</div>
+                        {diasAlFin !== null && (
+                          <div className={`text-[11px] ${diasAlFin <= 7 ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>
+                            {diasAlFin === 0 ? "Hoy" : `en ${diasAlFin}d`}
+                          </div>
                         )}
-                      </g>
-                    )) : (
-                      <circle cx="100" cy="100" r="80" fill="none" strokeWidth="16"
-                        stroke={pColor}
-                        strokeDasharray={`${pct * 5.027} ${C}`}
-                        strokeDashoffset="0" />
-                    )}
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <div className="text-[22px] font-bold tracking-[-0.05em] leading-none" style={{ color: pColor }}>{pct}%</div>
-                    <div className="text-[9px] text-ink-400 dark:text-ink-500 mt-0.5">listo</div>
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-ink-400 dark:text-ink-500">Total</span>
-                    <span className="text-[18px] font-bold tracking-tight text-ink dark:text-ink-50 leading-none">{totalItems}</span>
-                  </div>
-                  <div className="h-px bg-ink-100 dark:bg-ink-800" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-ink-400 dark:text-ink-500">Completos</span>
-                    <span className="text-[18px] font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">{completados}</span>
-                  </div>
-                  <div className="h-px bg-ink-100 dark:bg-ink-800" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-ink-400 dark:text-ink-500">Observ.</span>
-                    <span className="text-[18px] font-bold tracking-tight text-red-500 leading-none">{obs}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="text-[12px] text-ink-400 dark:text-ink-500">Fin estimado</div>
+                      <button onClick={() => rubrosActivos[0] && setModalFechasRubro(rubrosActivos[0])}
+                        className="text-[12px] text-violet-500 font-semibold bg-transparent border-0 cursor-pointer">
+                        Configurar
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="text-[12px] text-ink-400 dark:text-ink-500">Última actividad</div>
+                    <div className="text-[13px] font-bold text-ink dark:text-ink-50">
+                      {ultimosCompletos[0] ? relTime(ultimosCompletos[0].ts) : "—"}
+                    </div>
                   </div>
                 </div>
               </div>
-            );
-          })()}
+            </div>
+          </div>
 
-          {/* Rubros */}
+          {ultimosCompletos.length > 0 && (
+            <div className="mt-4 bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+              <div className="px-4 pt-4 pb-3 border-b border-ink-100 dark:border-ink-800">
+                <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Actividad reciente</div>
+              </div>
+              <div className="divide-y divide-ink-100 dark:divide-ink-800">
+                {ultimosCompletos.map((item, i) => {
+                  const rc = RUBROS.find(r => r.id === item.rubro);
+                  return (
+                    <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: (rc?.hex || "#8b5cf6") + "22" }}>
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: rc?.hex || "#8b5cf6" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold text-ink dark:text-ink-50 truncate">{item.tarea}</div>
+                        <div className="text-[11px] text-ink-400 dark:text-ink-500">{item.etapa}</div>
+                      </div>
+                      <div className="text-[11px] text-ink-400 dark:text-ink-500 flex-shrink-0">{relTime(item.ts)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Rubros */}
+      {tabActiva === "rubros" && (
+        <div className="md:flex md:items-start">
           {rubrosActivos.length > 0 && (
-            <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 mt-3 md:mt-0">
-              <div className="px-3.5 pt-3 pb-1">
-                <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Rubros</div>
-              </div>
-
-              {/* Mobile: horizontal scroll */}
-              <div className="md:hidden px-3.5 pt-2 pb-3">
+            <>
+              <div className="md:hidden px-3.5 pt-3 pb-2 bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
                 <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
                   {rubrosActivos.map(rid => {
                     const rc = RUBROS.find(r => r.id === rid);
                     const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
-                    const cp  = its.filter(i => i.estado === "completado").length;
-                    const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+                    const cp = its.filter(i => i.estado === "completado").length;
+                    const rp = its.length ? Math.round(cp / its.length * 100) : 0;
                     const isActive = rubroActivo === rid;
                     const cfg = rubrosConfig[rid] || {};
                     const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
@@ -785,9 +1067,7 @@ export default function App() {
                       <div key={rid} className="flex-shrink-0">
                         <button onClick={() => setRubroActivo(isActive ? null : rid)}
                           style={isActive ? { borderColor: rc?.hex, boxShadow: `0 0 0 1px ${rc?.hex}` } : {}}
-                          className={`w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all bg-white dark:bg-ink-900 block ${
-                            isActive ? "" : "border-ink-200 dark:border-ink-700"
-                          }`}>
+                          className={`w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all bg-white dark:bg-ink-900 block ${isActive ? "" : "border-ink-200 dark:border-ink-700"}`}>
                           <div className="flex items-center gap-1.5 mb-2.5">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
                             <span className="font-bold text-[12px] text-ink dark:text-ink-50 truncate">{rc?.label}</span>
@@ -802,7 +1082,7 @@ export default function App() {
                         </button>
                         <div className="flex gap-2 mt-1.5 px-1">
                           <button onClick={() => setModalFechasRubro(rid)}
-                            className="text-ink-300 dark:text-ink-600 hover:text-violet-500 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                            className="text-ink-300 dark:text-ink-600 hover:text-violet-500 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
                             <Calendar size={11} />
                           </button>
                           <button onClick={() => removeRubro(rid)}
@@ -816,113 +1096,86 @@ export default function App() {
                   {rubrosActivos.length < RUBROS.length && (
                     <button onClick={() => setModalRubro(true)}
                       className="flex-shrink-0 w-36 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 flex flex-col items-center justify-center gap-1.5 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors min-h-[90px]">
-                      <Plus size={15} />
-                      <span className="text-[12px] font-semibold">Rubro</span>
+                      <Plus size={15} /><span className="text-[12px] font-semibold">Rubro</span>
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Desktop: lista vertical */}
-              <div className="hidden md:block px-3 pt-1 pb-3">
-                {rubrosActivos.map(rid => {
-                  const rc = RUBROS.find(r => r.id === rid);
-                  const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
-                  const cp  = its.filter(i => i.estado === "completado").length;
-                  const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
-                  const isActive = rubroActivo === rid;
-                  const cfg = rubrosConfig[rid] || {};
-                  const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
-                  const fin = fmtFecha(cfg.fechaEstimadaFin);
-                  return (
-                    <div key={rid}>
-                      <button onClick={() => setRubroActivo(isActive ? null : rid)}
-                        style={isActive ? { borderColor: rc?.hex } : {}}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all border text-left ${
-                          isActive ? "bg-white dark:bg-ink-900" : "bg-transparent border-transparent hover:bg-ink-50 dark:hover:bg-ink-800"
-                        }`}>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
-                            <span className="font-bold text-[12px] text-ink dark:text-ink-50 truncate">{rc?.label}</span>
-                            {vencido && <AlertCircle size={9} className="text-red-500 flex-shrink-0" />}
+              <div className="hidden md:block md:w-[268px] md:flex-shrink-0 md:sticky md:top-[97px] md:h-[calc(100dvh-97px)] md:overflow-y-auto md:border-r md:border-ink-200 md:dark:border-ink-700 md:bg-white md:dark:bg-ink-900">
+                <div className="px-3 pt-4 pb-1">
+                  <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Rubros</div>
+                </div>
+                <div className="px-3 pt-1 pb-6">
+                  {rubrosActivos.map(rid => {
+                    const rc = RUBROS.find(r => r.id === rid);
+                    const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+                    const cp = its.filter(i => i.estado === "completado").length;
+                    const rp = its.length ? Math.round(cp / its.length * 100) : 0;
+                    const isActive = rubroActivo === rid;
+                    const cfg = rubrosConfig[rid] || {};
+                    const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
+                    const fin = fmtFecha(cfg.fechaEstimadaFin);
+                    return (
+                      <div key={rid}>
+                        <button onClick={() => setRubroActivo(isActive ? null : rid)}
+                          style={isActive ? { borderColor: rc?.hex } : {}}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all border text-left ${
+                            isActive ? "bg-white dark:bg-ink-900" : "bg-transparent border-transparent hover:bg-ink-50 dark:hover:bg-ink-800"
+                          }`}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
+                              <span className="font-bold text-[12px] text-ink dark:text-ink-50 truncate">{rc?.label}</span>
+                              {vencido && <AlertCircle size={9} className="text-red-500 flex-shrink-0" />}
+                            </div>
+                            <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden mt-1">
+                              <div className="h-full rounded-full" style={{ width: `${rp}%`, background: rc?.hex }} />
+                            </div>
                           </div>
-                          <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden mt-1">
-                            <div className="h-full rounded-full" style={{ width: `${rp}%`, background: rc?.hex }} />
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {fin && <span className={`text-[10px] ${vencido ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{fin}</span>}
+                            <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {fin && <span className={`text-[10px] ${vencido ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{fin}</span>}
-                          <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
-                        </div>
-                      </button>
-                      <div className="flex gap-2 px-3 pb-0.5">
-                        <button onClick={() => setModalFechasRubro(rid)}
-                          className="text-ink-300 dark:text-ink-600 hover:text-violet-500 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
-                          <Calendar size={10} />
                         </button>
-                        <button onClick={() => removeRubro(rid)}
-                          className="text-ink-300 dark:text-ink-600 hover:text-red-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
-                          <X size={10} />
-                        </button>
+                        <div className="flex gap-2 px-3 pb-0.5">
+                          <button onClick={() => setModalFechasRubro(rid)}
+                            className="text-ink-300 dark:text-ink-600 hover:text-violet-500 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                            <Calendar size={10} />
+                          </button>
+                          <button onClick={() => removeRubro(rid)}
+                            className="text-ink-300 dark:text-ink-600 hover:text-red-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                            <X size={10} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-                {rubrosActivos.length < RUBROS.length && (
-                  <button onClick={() => setModalRubro(true)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors">
-                    <Plus size={12} /><span className="text-[11px] font-semibold">Agregar rubro</span>
-                  </button>
-                )}
+                    );
+                  })}
+                  {rubrosActivos.length < RUBROS.length && (
+                    <button onClick={() => setModalRubro(true)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors">
+                      <Plus size={12} /><span className="text-[11px] font-semibold">Agregar rubro</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          {rubrosActivos.length === 0 && (
-            <div className="px-3.5 pt-4 pb-2">
+          <div className="flex-1 min-w-0 px-3.5 pt-4 pb-24">
+            {rubrosActivos.length === 0 && (
               <button onClick={() => setModalRubro(true)}
                 className="w-full py-3.5 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2 font-semibold text-sm">
                 <Plus size={15} /> Agregar rubro
               </button>
-            </div>
-          )}
-
-          {/* Bitácora en sidebar */}
-          {ultimosCompletos.length > 0 && (
-            <div className="px-3.5 pt-3 pb-6 mt-3 md:mt-0">
-              <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-2">Última actividad</div>
-              <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
-                {ultimosCompletos.map((item, i) => {
-                  const rc = RUBROS.find(r => r.id === item.rubro);
-                  return (
-                    <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i < ultimosCompletos.length - 1 ? "border-b border-ink-100 dark:border-ink-800" : ""}`}>
-                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex || "#8b5cf6" }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-semibold text-ink dark:text-ink-50 truncate">{item.tarea}</div>
-                        <div className="text-[10px] text-ink-400 dark:text-ink-500">{item.etapa}</div>
-                      </div>
-                      <div className="text-[10px] text-ink-400 dark:text-ink-500 flex-shrink-0">{relTime(item.ts)}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>{/* end left column */}
-
-        {/* RIGHT: Etapas */}
-        <div className="flex-1 min-w-0 px-3.5 pt-4 pb-24">
-          <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Etapas</div>
-          <div className="pt-2">
+            )}
             {rubroActivo === null && rubrosActivos.length > 0 ? (
-              /* Vista General: una card colapsable por rubro */
               rubrosActivos.map(rid => {
                 const rc = RUBROS.find(r => r.id === rid);
                 const rubroEtapas = etapas.filter(e => getRubroDeEtapa(e) === rid);
                 const its = rubroEtapas.flatMap(e => e.items || []);
-                const cp  = its.filter(i => i.estado === "completado").length;
-                const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+                const cp = its.filter(i => i.estado === "completado").length;
+                const rp = its.length ? Math.round(cp / its.length * 100) : 0;
                 const isOpen = !!rubrosExpandidos[rid];
                 return (
                   <div key={rid}
@@ -955,211 +1208,92 @@ export default function App() {
                     </div>
                     <Accordion open={isOpen}>
                       <div className="border-t border-ink-100 dark:border-ink-800 px-2 pb-2 pt-1">
-                        {rubroEtapas.map(etapa => {
-                          const open = !!expandidas[etapa.id];
-                          const ep   = pctEtapa(etapa);
-                          const mf   = fmtMonto(etapa);
-                          return (
-                            <div key={etapa.id}
-                              className="bg-ink-50 dark:bg-ink-800/50 rounded-xl mb-1.5 overflow-hidden border border-ink-100 dark:border-ink-800">
-                              <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
-                                className="flex items-center px-3 py-3 cursor-pointer select-none hover:bg-ink-100 dark:hover:bg-ink-700/50 transition-colors">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <div className="font-bold text-[13px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
-                                    {etapa.firma && <FileCheck size={11} className="text-emerald-500 flex-shrink-0" />}
-                                  </div>
-                                  <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
-                                    {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
-                                    {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="relative w-8 h-8">
-                                    <svg viewBox="0 0 38 38" className="-rotate-90 w-8 h-8">
-                                      <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-200 dark:text-ink-700" />
-                                      <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
-                                        stroke={progressStroke(ep)}
-                                        strokeDasharray={`${ep * 0.942} 100`}
-                                        style={{ transition: "stroke-dasharray .4s ease" }} />
-                                    </svg>
-                                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
-                                  </div>
-                                  <ChevronDown size={15} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
-                                </div>
-                              </div>
-                              <Accordion open={open}>
-                                <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
-                                  <SortableItemList
-                                    etapaId={etapa.id}
-                                    items={etapa.items}
-                                    onReorder={reorderItems}
-                                    onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
-                                    onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
-                                  />
-                                  {nuevoItemEtapa === etapa.id ? (
-                                    <div className="flex gap-1.5 mt-2">
-                                      <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
-                                        onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
-                                        placeholder="Descripción del ítem..."
-                                        className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
-                                      <button onClick={() => addItem(etapa.id)} className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold"><Plus size={14} /></button>
-                                      <button onClick={() => setNuevoItemEtapa(null)} className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400"><X size={13} /></button>
-                                    </div>
-                                  ) : (
-                                    <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
-                                      className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
-                                      <Plus size={13} /> Agregar ítem
-                                    </button>
-                                  )}
-                                  <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
-                                    <div className="flex items-center gap-2">
-                                      <Label>Monto etapa</Label>
-                                      <div className="flex gap-1.5 flex-1">
-                                        <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })} placeholder="0"
-                                          className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
-                                        <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
-                                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${(etapa.moneda || "ARS") === "USD" ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400" : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"}`}>
-                                          {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="mt-3">
-                                    {etapa.firma && (
-                                      <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
-                                        <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                          <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
-                                          <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">{etapa.firma.firmante} · {etapa.firma.fecha}</div>
-                                          {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
-                                            <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </Accordion>
-                            </div>
-                          );
-                        })}
+                        {rubroEtapas.map(etapa => renderEtapaAccordion(etapa, false))}
                       </div>
                     </Accordion>
                   </div>
                 );
               })
             ) : (
-              /* Vista rubro específico o sin rubros: lista plana */
-              etapasFiltradas.map(etapa => {
-                const open    = !!expandidas[etapa.id];
-                const ep      = pctEtapa(etapa);
-                const mf      = fmtMonto(etapa);
-                const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
-                return (
-                  <div key={etapa.id}
-                    style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
-                    className="bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden">
-                    <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
-                      className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
-                          {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
-                        </div>
-                        <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
-                          {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
-                          {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-9 h-9">
-                          <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
-                            <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
-                            <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
-                              stroke={progressStroke(ep)}
-                              strokeDasharray={`${ep * 0.942} 100`}
-                              style={{ transition: "stroke-dasharray .4s ease" }} />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
-                        </div>
-                        <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
-                      </div>
-                    </div>
-                    <Accordion open={open}>
-                      <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
-                        <SortableItemList
-                          etapaId={etapa.id}
-                          items={etapa.items}
-                          onReorder={reorderItems}
-                          onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
-                          onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
-                        />
-                        {nuevoItemEtapa === etapa.id ? (
-                          <div className="flex gap-1.5 mt-2">
-                            <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
-                              onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
-                              placeholder="Descripción del ítem..."
-                              className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
-                            <button onClick={() => addItem(etapa.id)}
-                              className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold">
-                              <Plus size={14} />
-                            </button>
-                            <button onClick={() => setNuevoItemEtapa(null)}
-                              className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400">
-                              <X size={13} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
-                            className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
-                            <Plus size={13} /> Agregar ítem
-                          </button>
-                        )}
-                        <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
-                          <div className="flex items-center gap-2">
-                            <Label>Monto etapa</Label>
-                            <div className="flex gap-1.5 flex-1">
-                              <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })}
-                                placeholder="0"
-                                className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
-                              <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
-                                className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
-                                  (etapa.moneda || "ARS") === "USD"
-                                    ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                                    : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
-                                }`}>
-                                {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          {etapa.firma && (
-                            <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
-                              <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
-                                <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">
-                                  {etapa.firma.firmante} · {etapa.firma.fecha}
-                                </div>
-                                {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
-                                  <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </Accordion>
-                  </div>
-                );
-              })
+              etapasFiltradas.map(etapa => renderEtapaAccordion(etapa, true))
             )}
           </div>
-        </div>{/* end right column */}
+        </div>
+      )}
 
-      </div>{/* end layout */}
+      {/* Tab: Bitácora */}
+      {tabActiva === "bitacora" && (
+        <div className="px-4 pt-5 pb-24 max-w-3xl mx-auto">
+          {ultimosCompletos.length === 0 ? (
+            <div className="text-center py-12 text-ink-400 dark:text-ink-500 text-sm">Aún no hay actividad registrada.</div>
+          ) : (
+            <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+              <div className="divide-y divide-ink-100 dark:divide-ink-800">
+                {etapas.flatMap(e =>
+                  (e.items || [])
+                    .filter(i => i.estado === "completado" && i.ultimoCambio?.timestamp)
+                    .map(i => ({ tarea: i.tarea, etapa: e.nombre, ts: i.ultimoCambio.timestamp, rubro: e.rubro || obraInfo.rubro, foto: i.foto }))
+                ).sort((a, b) => b.ts - a.ts).map((item, i) => {
+                  const rc = RUBROS.find(r => r.id === item.rubro);
+                  const fecha = new Date(item.ts).toLocaleString("es-AR", {
+                    timeZone: "America/Argentina/Buenos_Aires",
+                    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                  });
+                  return (
+                    <div key={i} className="flex items-center gap-3 px-4 py-4">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: (rc?.hex || "#8b5cf6") + "22" }}>
+                        <div className="w-3 h-3 rounded-full" style={{ background: rc?.hex || "#8b5cf6" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-semibold text-ink dark:text-ink-50">{item.tarea}</div>
+                        <div className="text-[11px] text-ink-400 dark:text-ink-500">{item.etapa}</div>
+                      </div>
+                      {item.foto && (
+                        <img src={item.foto} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                      )}
+                      <div className="text-[10px] text-ink-400 dark:text-ink-500 flex-shrink-0 whitespace-nowrap">{fecha}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Fotos */}
+      {tabActiva === "fotos" && (
+        <div className="px-4 pt-5 pb-24 max-w-5xl mx-auto">
+          {(() => {
+            const fotos = etapas.flatMap(e =>
+              (e.items || []).filter(i => i.foto).map(i => ({ foto: i.foto, tarea: i.tarea, etapa: e.nombre, rubro: e.rubro || obraInfo.rubro }))
+            );
+            if (fotos.length === 0) return (
+              <div className="text-center py-12 text-ink-400 dark:text-ink-500 text-sm">No hay fotos cargadas aún.</div>
+            );
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {fotos.map((f, i) => {
+                  const rc = RUBROS.find(r => r.id === f.rubro);
+                  return (
+                    <div key={i} className="rounded-2xl overflow-hidden border border-ink-200 dark:border-ink-700 bg-white dark:bg-ink-900">
+                      <img src={f.foto} alt={f.tarea} className="w-full aspect-square object-cover" />
+                      <div className="px-2.5 py-2">
+                        <div className="text-[11px] font-semibold text-ink dark:text-ink-50 truncate">{f.tarea}</div>
+                        <div className="text-[10px] text-ink-400 dark:text-ink-500 truncate">{f.etapa}</div>
+                        {rc && <div className="w-1.5 h-1.5 rounded-full mt-1" style={{ background: rc.hex }} />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+
 
       {/* Modal agregar rubro */}
       {modalRubro && (
@@ -1177,7 +1311,7 @@ export default function App() {
             <div className="flex flex-col gap-2">
               {RUBROS.filter(r => !rubrosActivos.includes(r.id)).map(r => (
                 <button key={r.id}
-                  onClick={() => { addRubro(r.id); setModalRubro(false); setRubroActivo(r.id); }}
+                  onClick={() => { addRubro(r.id); setModalRubro(false); setRubroActivo(r.id); setTabActiva("rubros"); }}
                   className="w-full text-left px-4 py-3.5 rounded-xl border border-ink-200 dark:border-ink-700 bg-ink-50 dark:bg-ink-800 cursor-pointer hover:border-current transition-all flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: r.hex }} />
                   <div>
