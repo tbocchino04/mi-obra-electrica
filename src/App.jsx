@@ -497,7 +497,7 @@ export default function App() {
         </button>
       </div>
     )}
-    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink pb-24">
+    <div className="min-h-[100dvh] bg-ink-50 dark:bg-ink">
 
       {/* TopBar */}
       <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
@@ -613,371 +613,450 @@ export default function App() {
         </div>
       </div>
 
-      {/* Hero obra header */}
-      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
-        {editInfo ? (
-          <div className="px-4 pt-4 pb-4">
-            {[
-              ["nombre",       "Nombre de obra"],
-              ["cliente",      "Cliente"],
-              ["direccion",    "Dirección"],
-              ["clienteEmail", "Email del cliente"],
-              ["adminEmail",   "Tu email (admin)"],
-            ].map(([k, ph]) => (
-              <input key={k} value={obraInfo[k] || ""} placeholder={ph}
-                onChange={e => setObraInfo(p => ({ ...p, [k]: e.target.value }))}
-                className={`bg-transparent border-0 border-b border-ink-200 dark:border-ink-700 text-ink dark:text-ink-50 w-full mb-2 py-1 outline-none block ${k === "nombre" ? "text-lg font-bold tracking-tight" : "text-sm"}`} />
-            ))}
-            <button onClick={() => setEditInfo(false)}
-              className="mt-2 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border-0 rounded-lg px-4 py-1.5 font-bold cursor-pointer text-xs">
-              Guardar
-            </button>
-          </div>
-        ) : (
-          <div onClick={() => setEditInfo(true)} className="cursor-pointer">
-            <div className="px-4 pt-5 pb-3">
-              <div className="text-[26px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-tight">{obraInfo.nombre || "Sin nombre"}</div>
-              <div className="flex gap-4 mt-2 flex-wrap">
-                {obraInfo.cliente && (
-                  <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
-                    <User size={11} /> {obraInfo.cliente}
-                  </div>
-                )}
-                {obraInfo.direccion && (
-                  <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
-                    <MapPin size={11} /> {obraInfo.direccion}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="px-4 pb-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="text-[11px] text-ink-400 dark:text-ink-500">{completados} de {totalItems} ítems completados</div>
-                <div className="text-[13px] font-bold" style={{ color: pColor }}>{pct}%</div>
-              </div>
-              <div className="h-1.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${pct}%`, background: pColor }} />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Layout: sidebar fija en desktop, stacked en mobile */}
+      <div className="md:flex md:items-start">
 
-      {/* Pendientes strip */}
-      {(atrasadosCount > 0 || porFirmarCount > 0 || diasAlFin !== null) && (
-        <div className="px-3.5 pt-3 flex gap-2 flex-wrap">
-          {atrasadosCount > 0 && (
-            <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl px-3 py-2">
-              <AlertCircle size={12} className="text-red-500 flex-shrink-0" />
-              <span className="text-[12px] font-bold text-red-600 dark:text-red-400">{atrasadosCount} atrasado{atrasadosCount > 1 ? "s" : ""}</span>
-            </div>
-          )}
-          {porFirmarCount > 0 && (
-            <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl px-3 py-2">
-              <FileCheck size={12} className="text-amber-500 flex-shrink-0" />
-              <span className="text-[12px] font-bold text-amber-600 dark:text-amber-400">{porFirmarCount} por firmar</span>
-            </div>
-          )}
-          {diasAlFin !== null && (
-            <div className="flex items-center gap-1.5 bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 py-2">
-              <Calendar size={12} className="text-ink-400 dark:text-ink-500 flex-shrink-0" />
-              <span className="text-[12px] font-semibold text-ink-600 dark:text-ink-300">
-                {diasAlFin === 0 ? "Vence hoy" : `${diasAlFin}d al vencimiento`}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+        {/* LEFT: panel de info */}
+        <div className="md:w-[268px] md:flex-shrink-0 md:sticky md:top-[49px] md:h-[calc(100dvh-49px)] md:overflow-y-auto md:border-r md:border-ink-200 md:dark:border-ink-700 md:bg-white md:dark:bg-ink-900">
 
-      {/* Zone 1: Hero donut */}
-      {(() => {
-        let accum = 0;
-        const segs = rubrosActivos.length > 0 ? rubrosActivos.map(rid => {
-          const rc   = RUBROS.find(r => r.id === rid);
-          const its  = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
-          const cp   = its.filter(i => i.estado === "completado").length;
-          const w    = totalItems > 0 ? its.length / totalItems : (1 / rubrosActivos.length);
-          const seg  = w * C;
-          const fill = seg * (its.length ? cp / its.length : 0);
-          const off  = accum;
-          accum += seg;
-          return { rid, rc, seg, fill, off };
-        }) : null;
-        const obs = etapas.flatMap(e => e.items || []).filter(i => i.estado === "observacion").length;
-        return (
-          <div className="bg-white dark:bg-ink-900 py-6 flex flex-col items-center border-b border-ink-200 dark:border-ink-700 mt-3">
-            <div className="relative w-[200px] h-[200px]">
-              <svg width="200" height="200" viewBox="0 0 200 200" className="-rotate-90">
-                <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" strokeWidth="14"
-                  className="text-ink-100 dark:text-ink-800" />
-                {segs ? segs.map(({ rid, rc, seg, fill, off }) => (
-                  <g key={rid}>
-                    <circle cx="100" cy="100" r="80" fill="none" strokeWidth="14"
-                      stroke={(rc?.hex || "#8b5cf6") + "33"}
-                      strokeDasharray={`${seg} ${C}`}
-                      strokeDashoffset={-off} />
-                    {fill > 0.5 && (
-                      <circle cx="100" cy="100" r="80" fill="none" strokeWidth="14"
-                        stroke={rc?.hex || "#8b5cf6"}
-                        strokeDasharray={`${fill} ${C}`}
-                        strokeDashoffset={-off} />
+          {/* Hero obra header */}
+          <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
+            {editInfo ? (
+              <div className="px-4 pt-4 pb-4">
+                {[
+                  ["nombre",       "Nombre de obra"],
+                  ["cliente",      "Cliente"],
+                  ["direccion",    "Dirección"],
+                  ["clienteEmail", "Email del cliente"],
+                  ["adminEmail",   "Tu email (admin)"],
+                ].map(([k, ph]) => (
+                  <input key={k} value={obraInfo[k] || ""} placeholder={ph}
+                    onChange={e => setObraInfo(p => ({ ...p, [k]: e.target.value }))}
+                    className={`bg-transparent border-0 border-b border-ink-200 dark:border-ink-700 text-ink dark:text-ink-50 w-full mb-2 py-1 outline-none block ${k === "nombre" ? "text-lg font-bold tracking-tight" : "text-sm"}`} />
+                ))}
+                <button onClick={() => setEditInfo(false)}
+                  className="mt-2 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border-0 rounded-lg px-4 py-1.5 font-bold cursor-pointer text-xs">
+                  Guardar
+                </button>
+              </div>
+            ) : (
+              <div onClick={() => setEditInfo(true)} className="cursor-pointer">
+                <div className="px-4 pt-4 pb-2">
+                  <div className="text-[22px] font-bold text-ink dark:text-ink-50 tracking-[-0.04em] leading-tight">{obraInfo.nombre || "Sin nombre"}</div>
+                  <div className="flex gap-3 mt-1.5 flex-wrap">
+                    {obraInfo.cliente && (
+                      <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
+                        <User size={11} /> {obraInfo.cliente}
+                      </div>
                     )}
-                  </g>
-                )) : (
-                  <circle cx="100" cy="100" r="80" fill="none" strokeWidth="14"
-                    stroke={pColor}
-                    strokeDasharray={`${pct * 5.027} ${C}`}
-                    strokeDashoffset="0" />
-                )}
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="text-[44px] font-bold tracking-[-0.05em] leading-none" style={{ color: pColor }}>{pct}%</div>
-                <div className="text-xs text-ink-400 dark:text-ink-500 mt-1">completado</div>
-              </div>
-            </div>
-            <div className="flex gap-8 mt-5">
-              <div className="text-center">
-                <div className="text-[24px] font-bold tracking-tight text-ink dark:text-ink-50">{totalItems}</div>
-                <div className="text-[11px] text-ink-400 dark:text-ink-500">total</div>
-              </div>
-              <div className="text-center">
-                <div className="text-[24px] font-bold tracking-tight text-emerald-600 dark:text-emerald-400">{completados}</div>
-                <div className="text-[11px] text-ink-400 dark:text-ink-500">completos</div>
-              </div>
-              <div className="text-center">
-                <div className="text-[24px] font-bold tracking-tight text-red-500">{obs}</div>
-                <div className="text-[11px] text-ink-400 dark:text-ink-500">observaciones</div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Zone 2: Rubro cards */}
-      {rubrosActivos.length > 0 && (
-        <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 mt-3">
-          <div className="px-3.5 pt-3.5 pb-1">
-            <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Rubros</div>
-          </div>
-          <div className="px-3.5 pt-2 pb-3">
-          <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
-            <button onClick={() => setRubroActivo(null)}
-              className={`flex-shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all ${
-                rubroActivo === null
-                  ? "bg-ink dark:bg-ink-50 border-ink dark:border-ink-50"
-                  : "bg-white dark:bg-ink-900 border-ink-200 dark:border-ink-700"
-              }`}>
-              <div className={`font-bold text-[13px] mb-2.5 ${rubroActivo === null ? "text-white dark:text-ink" : "text-ink dark:text-ink-50"}`}>
-                General
-              </div>
-              <div className="h-1 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-[width_.4s_ease]"
-                  style={{ width: `${pct}%`, background: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }} />
-              </div>
-              <div className="text-[12px] font-bold mt-1.5"
-                style={{ color: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }}>{pct}%</div>
-            </button>
-
-            {rubrosActivos.map(rid => {
-              const rc = RUBROS.find(r => r.id === rid);
-              const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
-              const cp  = its.filter(i => i.estado === "completado").length;
-              const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
-              const isActive = rubroActivo === rid;
-              const cfg = rubrosConfig[rid] || {};
-              const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
-              const fin = fmtFecha(cfg.fechaEstimadaFin);
-              return (
-                <div key={rid} className="flex-shrink-0">
-                  <button onClick={() => setRubroActivo(isActive ? null : rid)}
-                    style={isActive ? { borderColor: rc?.hex, boxShadow: `0 0 0 1px ${rc?.hex}` } : {}}
-                    className={`w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all bg-white dark:bg-ink-900 block ${
-                      isActive ? "" : "border-ink-200 dark:border-ink-700"
-                    }`}>
-                    <div className="flex items-center gap-1.5 mb-2.5">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
-                      <span className="font-bold text-[12px] text-ink dark:text-ink-50 truncate">{rc?.label}</span>
-                    </div>
-                    <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${rp}%`, background: rc?.hex }} />
-                    </div>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
-                      {fin && <span className={`text-[10px] ${vencido ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{fin}</span>}
-                    </div>
-                  </button>
-                  <div className="flex gap-2 mt-1.5 px-1">
-                    <button onClick={() => setModalFechasRubro(rid)}
-                      className="text-ink-300 dark:text-ink-600 hover:text-violet-500 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
-                      <Calendar size={11} />
-                    </button>
-                    <button onClick={() => removeRubro(rid)}
-                      className="text-ink-300 dark:text-ink-600 hover:text-red-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
-                      <X size={11} />
-                    </button>
+                    {obraInfo.direccion && (
+                      <div className="flex items-center gap-1.5 text-xs text-ink-500 dark:text-ink-400">
+                        <MapPin size={11} /> {obraInfo.direccion}
+                      </div>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-
-            {rubrosActivos.length < RUBROS.length && (
-              <button onClick={() => setModalRubro(true)}
-                className="flex-shrink-0 w-36 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 flex flex-col items-center justify-center gap-1.5 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors min-h-[90px]">
-                <Plus size={15} />
-                <span className="text-[12px] font-semibold">Rubro</span>
-              </button>
+                <div className="px-4 pb-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="text-[11px] text-ink-400 dark:text-ink-500">{completados} de {totalItems} ítems</div>
+                    <div className="text-[12px] font-bold" style={{ color: pColor }}>{pct}%</div>
+                  </div>
+                  <div className="h-1.5 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${pct}%`, background: pColor }} />
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-          </div>
-        </div>
-      )}
 
-      {rubrosActivos.length === 0 && (
-        <div className="px-3.5 pt-4 pb-2">
-          <button onClick={() => setModalRubro(true)}
-            className="w-full py-3.5 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2 font-semibold text-sm">
-            <Plus size={15} /> Agregar rubro
-          </button>
-        </div>
-      )}
+          {/* Pendientes strip */}
+          {(atrasadosCount > 0 || porFirmarCount > 0 || diasAlFin !== null) && (
+            <div className="px-3.5 pt-2.5 pb-2.5 flex gap-1.5 flex-wrap bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700">
+              {atrasadosCount > 0 && (
+                <div className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-xl px-2.5 py-1.5">
+                  <AlertCircle size={11} className="text-red-500 flex-shrink-0" />
+                  <span className="text-[11px] font-bold text-red-600 dark:text-red-400">{atrasadosCount} atrasado{atrasadosCount > 1 ? "s" : ""}</span>
+                </div>
+              )}
+              {porFirmarCount > 0 && (
+                <div className="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl px-2.5 py-1.5">
+                  <FileCheck size={11} className="text-amber-500 flex-shrink-0" />
+                  <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">{porFirmarCount} por firmar</span>
+                </div>
+              )}
+              {diasAlFin !== null && (
+                <div className="flex items-center gap-1.5 bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-2.5 py-1.5">
+                  <Calendar size={11} className="text-ink-400 dark:text-ink-500 flex-shrink-0" />
+                  <span className="text-[11px] font-semibold text-ink-600 dark:text-ink-300">
+                    {diasAlFin === 0 ? "Vence hoy" : `${diasAlFin}d al vencimiento`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
-      {/* Zone 3: Etapas */}
-      <div className="px-3.5 pt-4 pb-1">
-        <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Etapas</div>
-      </div>
-      <div className="px-3.5 pt-2">
-        {etapasFiltradas.map(etapa => {
-          const open    = !!expandidas[etapa.id];
-          const ep      = pctEtapa(etapa);
-          const mf      = fmtMonto(etapa);
-          const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
-
-          return (
-            <div key={etapa.id}
-              style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
-              className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden`}>
-              <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
-                className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
-                    {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
-                  </div>
-                  <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
-                    {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
-                    {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+          {/* Donut compacto + stats en fila */}
+          {(() => {
+            let accum = 0;
+            const segs = rubrosActivos.length > 0 ? rubrosActivos.map(rid => {
+              const rc   = RUBROS.find(r => r.id === rid);
+              const its  = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+              const cp   = its.filter(i => i.estado === "completado").length;
+              const w    = totalItems > 0 ? its.length / totalItems : (1 / rubrosActivos.length);
+              const seg  = w * C;
+              const fill = seg * (its.length ? cp / its.length : 0);
+              const off  = accum;
+              accum += seg;
+              return { rid, rc, seg, fill, off };
+            }) : null;
+            const obs = etapas.flatMap(e => e.items || []).filter(i => i.estado === "observacion").length;
+            return (
+              <div className="bg-white dark:bg-ink-900 px-4 py-3.5 flex items-center gap-4 border-b border-ink-200 dark:border-ink-700 mt-3 md:mt-0">
+                <div className="relative w-[96px] h-[96px] flex-shrink-0">
+                  <svg width="96" height="96" viewBox="0 0 200 200" className="-rotate-90">
+                    <circle cx="100" cy="100" r="80" fill="none" stroke="currentColor" strokeWidth="16"
+                      className="text-ink-100 dark:text-ink-800" />
+                    {segs ? segs.map(({ rid, rc, seg, fill, off }) => (
+                      <g key={rid}>
+                        <circle cx="100" cy="100" r="80" fill="none" strokeWidth="16"
+                          stroke={(rc?.hex || "#8b5cf6") + "33"}
+                          strokeDasharray={`${seg} ${C}`}
+                          strokeDashoffset={-off} />
+                        {fill > 0.5 && (
+                          <circle cx="100" cy="100" r="80" fill="none" strokeWidth="16"
+                            stroke={rc?.hex || "#8b5cf6"}
+                            strokeDasharray={`${fill} ${C}`}
+                            strokeDashoffset={-off} />
+                        )}
+                      </g>
+                    )) : (
+                      <circle cx="100" cy="100" r="80" fill="none" strokeWidth="16"
+                        stroke={pColor}
+                        strokeDasharray={`${pct * 5.027} ${C}`}
+                        strokeDashoffset="0" />
+                    )}
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="text-[22px] font-bold tracking-[-0.05em] leading-none" style={{ color: pColor }}>{pct}%</div>
+                    <div className="text-[9px] text-ink-400 dark:text-ink-500 mt-0.5">listo</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-9 h-9">
-                    <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
-                      <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
-                      <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
-                        stroke={progressStroke(ep)}
-                        strokeDasharray={`${ep * 0.942} 100`}
-                        style={{ transition: "stroke-dasharray .4s ease" }} />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-ink-400 dark:text-ink-500">Total</span>
+                    <span className="text-[18px] font-bold tracking-tight text-ink dark:text-ink-50 leading-none">{totalItems}</span>
                   </div>
-                  <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+                  <div className="h-px bg-ink-100 dark:bg-ink-800" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-ink-400 dark:text-ink-500">Completos</span>
+                    <span className="text-[18px] font-bold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">{completados}</span>
+                  </div>
+                  <div className="h-px bg-ink-100 dark:bg-ink-800" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-ink-400 dark:text-ink-500">Observ.</span>
+                    <span className="text-[18px] font-bold tracking-tight text-red-500 leading-none">{obs}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Rubros */}
+          {rubrosActivos.length > 0 && (
+            <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 mt-3 md:mt-0">
+              <div className="px-3.5 pt-3 pb-1">
+                <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Rubros</div>
+              </div>
+
+              {/* Mobile: horizontal scroll */}
+              <div className="md:hidden px-3.5 pt-2 pb-3">
+                <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
+                  <button onClick={() => setRubroActivo(null)}
+                    className={`flex-shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all ${
+                      rubroActivo === null
+                        ? "bg-ink dark:bg-ink-50 border-ink dark:border-ink-50"
+                        : "bg-white dark:bg-ink-900 border-ink-200 dark:border-ink-700"
+                    }`}>
+                    <div className={`font-bold text-[13px] mb-2.5 ${rubroActivo === null ? "text-white dark:text-ink" : "text-ink dark:text-ink-50"}`}>
+                      General
+                    </div>
+                    <div className="h-1 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-[width_.4s_ease]"
+                        style={{ width: `${pct}%`, background: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }} />
+                    </div>
+                    <div className="text-[12px] font-bold mt-1.5"
+                      style={{ color: rubroActivo === null ? "rgba(255,255,255,0.85)" : pColor }}>{pct}%</div>
+                  </button>
+                  {rubrosActivos.map(rid => {
+                    const rc = RUBROS.find(r => r.id === rid);
+                    const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+                    const cp  = its.filter(i => i.estado === "completado").length;
+                    const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+                    const isActive = rubroActivo === rid;
+                    const cfg = rubrosConfig[rid] || {};
+                    const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
+                    const fin = fmtFecha(cfg.fechaEstimadaFin);
+                    return (
+                      <div key={rid} className="flex-shrink-0">
+                        <button onClick={() => setRubroActivo(isActive ? null : rid)}
+                          style={isActive ? { borderColor: rc?.hex, boxShadow: `0 0 0 1px ${rc?.hex}` } : {}}
+                          className={`w-36 rounded-2xl border-2 p-3.5 text-left cursor-pointer transition-all bg-white dark:bg-ink-900 block ${
+                            isActive ? "" : "border-ink-200 dark:border-ink-700"
+                          }`}>
+                          <div className="flex items-center gap-1.5 mb-2.5">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
+                            <span className="font-bold text-[12px] text-ink dark:text-ink-50 truncate">{rc?.label}</span>
+                          </div>
+                          <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-[width_.4s_ease]" style={{ width: `${rp}%`, background: rc?.hex }} />
+                          </div>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
+                            {fin && <span className={`text-[10px] ${vencido ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{fin}</span>}
+                          </div>
+                        </button>
+                        <div className="flex gap-2 mt-1.5 px-1">
+                          <button onClick={() => setModalFechasRubro(rid)}
+                            className="text-ink-300 dark:text-ink-600 hover:text-violet-500 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                            <Calendar size={11} />
+                          </button>
+                          <button onClick={() => removeRubro(rid)}
+                            className="text-ink-300 dark:text-ink-600 hover:text-red-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                            <X size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {rubrosActivos.length < RUBROS.length && (
+                    <button onClick={() => setModalRubro(true)}
+                      className="flex-shrink-0 w-36 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 flex flex-col items-center justify-center gap-1.5 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors min-h-[90px]">
+                      <Plus size={15} />
+                      <span className="text-[12px] font-semibold">Rubro</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <Accordion open={open}>
-                <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
-                  <SortableItemList
-                    etapaId={etapa.id}
-                    items={etapa.items}
-                    onReorder={reorderItems}
-                    onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
-                    onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
-                  />
-
-                  {nuevoItemEtapa === etapa.id ? (
-                    <div className="flex gap-1.5 mt-2">
-                      <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
-                        onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
-                        placeholder="Descripción del ítem..."
-                        className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
-                      <button onClick={() => addItem(etapa.id)}
-                        className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold">
-                        <Plus size={14} />
-                      </button>
-                      <button onClick={() => setNuevoItemEtapa(null)}
-                        className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400">
-                        <X size={13} />
-                      </button>
+              {/* Desktop: lista vertical */}
+              <div className="hidden md:block px-3 pt-1 pb-3">
+                <button onClick={() => setRubroActivo(null)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-1 cursor-pointer transition-all border text-left ${
+                    rubroActivo === null
+                      ? "bg-ink dark:bg-ink-100 border-ink dark:border-ink-100"
+                      : "bg-transparent border-transparent hover:bg-ink-50 dark:hover:bg-ink-800"
+                  }`}>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-bold text-[12px] ${rubroActivo === null ? "text-white dark:text-ink" : "text-ink dark:text-ink-50"}`}>General</div>
+                    <div className="h-1 bg-ink-200 dark:bg-ink-700 rounded-full overflow-hidden mt-1">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: rubroActivo === null ? "rgba(255,255,255,0.8)" : pColor }} />
                     </div>
-                  ) : (
-                    <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
-                      className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
-                      <Plus size={13} /> Agregar ítem
-                    </button>
-                  )}
-
-                  <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
-                    <div className="flex items-center gap-2">
-                      <Label>Monto etapa</Label>
-                      <div className="flex gap-1.5 flex-1">
-                        <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })}
-                          placeholder="0"
-                          className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
-                        <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
-                          className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
-                            (etapa.moneda || "ARS") === "USD"
-                              ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
-                              : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
-                          }`}>
-                          {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
+                  </div>
+                  <span className="text-[12px] font-bold flex-shrink-0" style={{ color: rubroActivo === null ? "rgba(255,255,255,0.9)" : pColor }}>{pct}%</span>
+                </button>
+                {rubrosActivos.map(rid => {
+                  const rc = RUBROS.find(r => r.id === rid);
+                  const its = etapas.filter(e => getRubroDeEtapa(e) === rid).flatMap(e => e.items || []);
+                  const cp  = its.filter(i => i.estado === "completado").length;
+                  const rp  = its.length ? Math.round(cp / its.length * 100) : 0;
+                  const isActive = rubroActivo === rid;
+                  const cfg = rubrosConfig[rid] || {};
+                  const vencido = cfg.fechaEstimadaFin && cfg.fechaEstimadaFin < HOY && rp < 100;
+                  const fin = fmtFecha(cfg.fechaEstimadaFin);
+                  return (
+                    <div key={rid}>
+                      <button onClick={() => setRubroActivo(isActive ? null : rid)}
+                        style={isActive ? { borderColor: rc?.hex } : {}}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all border text-left ${
+                          isActive ? "bg-white dark:bg-ink-900" : "bg-transparent border-transparent hover:bg-ink-50 dark:hover:bg-ink-800"
+                        }`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: rc?.hex }} />
+                            <span className="font-bold text-[12px] text-ink dark:text-ink-50 truncate">{rc?.label}</span>
+                            {vencido && <AlertCircle size={9} className="text-red-500 flex-shrink-0" />}
+                          </div>
+                          <div className="h-1 bg-ink-100 dark:bg-ink-800 rounded-full overflow-hidden mt-1">
+                            <div className="h-full rounded-full" style={{ width: `${rp}%`, background: rc?.hex }} />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {fin && <span className={`text-[10px] ${vencido ? "text-red-500" : "text-ink-400 dark:text-ink-500"}`}>{fin}</span>}
+                          <span className="text-[12px] font-bold" style={{ color: rc?.hex }}>{rp}%</span>
+                        </div>
+                      </button>
+                      <div className="flex gap-2 px-3 pb-0.5">
+                        <button onClick={() => setModalFechasRubro(rid)}
+                          className="text-ink-300 dark:text-ink-600 hover:text-violet-500 dark:hover:text-violet-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                          <Calendar size={10} />
+                        </button>
+                        <button onClick={() => removeRubro(rid)}
+                          className="text-ink-300 dark:text-ink-600 hover:text-red-400 bg-transparent border-0 cursor-pointer p-0.5 transition-colors">
+                          <X size={10} />
                         </button>
                       </div>
                     </div>
+                  );
+                })}
+                {rubrosActivos.length < RUBROS.length && (
+                  <button onClick={() => setModalRubro(true)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors">
+                    <Plus size={12} /><span className="text-[11px] font-semibold">Agregar rubro</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {rubrosActivos.length === 0 && (
+            <div className="px-3.5 pt-4 pb-2">
+              <button onClick={() => setModalRubro(true)}
+                className="w-full py-3.5 rounded-2xl border-2 border-dashed border-ink-300 dark:border-ink-600 text-ink-400 dark:text-ink-500 cursor-pointer hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2 font-semibold text-sm">
+                <Plus size={15} /> Agregar rubro
+              </button>
+            </div>
+          )}
+
+          {/* Bitácora en sidebar */}
+          {ultimosCompletos.length > 0 && (
+            <div className="px-3.5 pt-3 pb-6 mt-3 md:mt-0">
+              <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-2">Última actividad</div>
+              <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
+                {ultimosCompletos.map((item, i) => {
+                  const rc = RUBROS.find(r => r.id === item.rubro);
+                  return (
+                    <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i < ultimosCompletos.length - 1 ? "border-b border-ink-100 dark:border-ink-800" : ""}`}>
+                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex || "#8b5cf6" }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-semibold text-ink dark:text-ink-50 truncate">{item.tarea}</div>
+                        <div className="text-[10px] text-ink-400 dark:text-ink-500">{item.etapa}</div>
+                      </div>
+                      <div className="text-[10px] text-ink-400 dark:text-ink-500 flex-shrink-0">{relTime(item.ts)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>{/* end left column */}
+
+        {/* RIGHT: Etapas */}
+        <div className="flex-1 min-w-0 px-3.5 pt-4 pb-24">
+          <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500">Etapas</div>
+          <div className="pt-2">
+            {etapasFiltradas.map(etapa => {
+              const open    = !!expandidas[etapa.id];
+              const ep      = pctEtapa(etapa);
+              const mf      = fmtMonto(etapa);
+              const eRubroC = RUBROS.find(r => r.id === (etapa.rubro || obraInfo.rubro));
+
+              return (
+                <div key={etapa.id}
+                  style={eRubroC ? { borderLeftColor: eRubroC.hex } : {}}
+                  className={`bg-white dark:bg-ink-900 rounded-2xl mb-2.5 border border-l-[3px] border-ink-200 dark:border-ink-700 overflow-hidden`}>
+                  <div onClick={() => setExpandidas(p => ({ ...p, [etapa.id]: !p[etapa.id] }))}
+                    className="flex items-center px-4 py-4 cursor-pointer select-none hover:bg-ink-50 dark:hover:bg-ink-800/50 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="font-bold text-[14px] text-ink dark:text-ink-50 tracking-tight">{etapa.nombre}</div>
+                        {etapa.firma && <FileCheck size={12} className="text-emerald-500 flex-shrink-0" />}
+                      </div>
+                      <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                        {etapa.items.filter(i => i.estado === "completado").length}/{etapa.items.length} completados
+                        {mf && <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">{mf}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-9 h-9">
+                        <svg viewBox="0 0 38 38" className="-rotate-90 w-9 h-9">
+                          <circle cx="19" cy="19" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-ink-100 dark:text-ink-800" />
+                          <circle cx="19" cy="19" r="15" fill="none" strokeWidth="3" strokeLinecap="round"
+                            stroke={progressStroke(ep)}
+                            strokeDasharray={`${ep * 0.942} 100`}
+                            style={{ transition: "stroke-dasharray .4s ease" }} />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-ink dark:text-ink-50">{ep}%</div>
+                      </div>
+                      <ChevronDown size={17} className={`text-ink-400 dark:text-ink-500 transition-transform duration-250 ${open ? "rotate-180" : ""}`} />
+                    </div>
                   </div>
 
-                  <div className="mt-3">
-                    {etapa.firma && (
-                      <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
-                        <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
-                          <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">
-                            {etapa.firma.firmante} · {etapa.firma.fecha}
+                  <Accordion open={open}>
+                    <div className="border-t border-ink-100 dark:border-ink-800 px-3 pb-3.5 pt-2">
+                      <SortableItemList
+                        etapaId={etapa.id}
+                        items={etapa.items}
+                        onReorder={reorderItems}
+                        onToggle={(eId, itemId, done) => updateItem(eId, itemId, { estado: done ? "pendiente" : "completado" })}
+                        onEdit={(eId, item) => setModalItem({ etapaId: eId, item })}
+                      />
+
+                      {nuevoItemEtapa === etapa.id ? (
+                        <div className="flex gap-1.5 mt-2">
+                          <input autoFocus value={nuevoItemTexto} onChange={e => setNuevoItemTexto(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") addItem(etapa.id); if (e.key === "Escape") setNuevoItemEtapa(null); }}
+                            placeholder="Descripción del ítem..."
+                            className="flex-1 px-3 py-2 rounded-xl border border-violet-400 dark:border-violet-600 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 placeholder-ink-300 outline-none" />
+                          <button onClick={() => addItem(etapa.id)}
+                            className="bg-ink dark:bg-white text-white dark:text-ink border-0 rounded-xl px-3.5 cursor-pointer font-bold">
+                            <Plus size={14} />
+                          </button>
+                          <button onClick={() => setNuevoItemEtapa(null)}
+                            className="bg-ink-50 dark:bg-ink-800 border border-ink-200 dark:border-ink-700 rounded-xl px-3 cursor-pointer text-ink-400">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setNuevoItemEtapa(etapa.id); setNuevoItemTexto(""); }}
+                          className="mt-2 w-full py-2.5 bg-transparent border border-dashed border-ink-200 dark:border-ink-700 rounded-xl text-ink-400 dark:text-ink-500 cursor-pointer text-sm font-medium flex items-center justify-center gap-1.5 hover:border-violet-400 dark:hover:border-violet-600 transition-colors">
+                          <Plus size={13} /> Agregar ítem
+                        </button>
+                      )}
+
+                      <div className="mt-3 pt-3 border-t border-ink-100 dark:border-ink-800">
+                        <div className="flex items-center gap-2">
+                          <Label>Monto etapa</Label>
+                          <div className="flex gap-1.5 flex-1">
+                            <input type="number" value={etapa.monto || ""} onChange={e => updateEtapa(etapa.id, { monto: e.target.value })}
+                              placeholder="0"
+                              className="flex-1 px-2.5 py-1.5 rounded-lg border border-ink-200 dark:border-ink-700 text-sm bg-white dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
+                            <button onClick={() => updateEtapa(etapa.id, { moneda: (etapa.moneda || "ARS") === "USD" ? "ARS" : "USD" })}
+                              className={`px-3 py-1.5 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+                                (etapa.moneda || "ARS") === "USD"
+                                  ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400"
+                                  : "border-violet-400 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
+                              }`}>
+                              {(etapa.moneda || "ARS") === "USD" ? "USD" : "ARS"}
+                            </button>
                           </div>
-                          {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
-                            <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
-                          )}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-              </Accordion>
-            </div>
-          );
-        })}
-      </div>
 
-      {/* Bitácora - última actividad */}
-      {ultimosCompletos.length > 0 && (
-        <div className="px-3.5 pt-2 pb-4">
-          <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-2.5">Última actividad</div>
-          <div className="bg-white dark:bg-ink-900 rounded-2xl border border-ink-200 dark:border-ink-700 overflow-hidden">
-            {ultimosCompletos.map((item, i) => {
-              const rc = RUBROS.find(r => r.id === item.rubro);
-              return (
-                <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i < ultimosCompletos.length - 1 ? "border-b border-ink-100 dark:border-ink-800" : ""}`}>
-                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: rc?.hex || "#8b5cf6" }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-semibold text-ink dark:text-ink-50 truncate">{item.tarea}</div>
-                    <div className="text-[10px] text-ink-400 dark:text-ink-500">{item.etapa}</div>
-                  </div>
-                  <div className="text-[10px] text-ink-400 dark:text-ink-500 flex-shrink-0">{relTime(item.ts)}</div>
+                      <div className="mt-3">
+                        {etapa.firma && (
+                          <div className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900">
+                            <FileCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">Conformidad firmada</div>
+                              <div className="text-[11px] text-emerald-600/70 dark:text-emerald-500 truncate">
+                                {etapa.firma.firmante} · {etapa.firma.fecha}
+                              </div>
+                              {etapa.firma.monto && etapa.firma.monto !== "No especificado" && (
+                                <div className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{etapa.firma.monto}</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Accordion>
                 </div>
               );
             })}
           </div>
-        </div>
-      )}
+        </div>{/* end right column */}
+
+      </div>{/* end layout */}
 
       {/* Modal agregar rubro */}
       {modalRubro && (
