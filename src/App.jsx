@@ -22,6 +22,9 @@ import VistaSocio from "./components/VistaSocio";
 import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpers";
 import { compressImage, validateImage } from "./utils/imageUtils";
 import AvanzaLogo from "./components/AvanzaLogo";
+import { useNotificaciones } from "./hooks/useNotificaciones";
+import { crearNotificacion } from "./services/notificaciones";
+import NotificacionesPanel from "./components/NotificacionesPanel";
 
 const clienteToken = new URLSearchParams(window.location.search).get("c");
 const socioToken   = new URLSearchParams(window.location.search).get("s");
@@ -178,6 +181,10 @@ export default function App() {
   const saveTimer      = useRef();
   const unsubRef       = useRef();
   const justLoadedRef  = useRef(false);
+  const hitosRef       = useRef(new Set());
+  const inactividadRef = useRef(false);
+
+  const { notifs, noLeidas } = useNotificaciones(user?.uid);
 
   useEffect(() => {
     return onAuth(async u => {
@@ -201,6 +208,8 @@ export default function App() {
 
   useEffect(() => {
     if (unsubRef.current) unsubRef.current();
+    hitosRef.current = new Set();
+    inactividadRef.current = false;
     if (!obraActiva) {
       setEtapas([]);
       setObraInfo({ nombre: "", cliente: "", direccion: "", clienteEmail: "", adminEmail: "" });
@@ -211,6 +220,24 @@ export default function App() {
     if (obraActiva.etapas)       setEtapas(obraActiva.etapas);
     if (obraActiva.obraInfo)     setObraInfo(obraActiva.obraInfo);
     if (obraActiva.rubrosConfig) setRubrosConfig(obraActiva.rubrosConfig);
+
+    // Check inactividad al cargar
+    if (user?.uid && obraActiva.etapas) {
+      const lastTs = obraActiva.etapas
+        .flatMap(e => e.items || [])
+        .map(i => i.ultimoCambio?.timestamp || 0)
+        .reduce((max, ts) => Math.max(max, ts), 0);
+      if (lastTs > 0 && Date.now() - lastTs > 48 * 3600 * 1000) {
+        inactividadRef.current = true;
+        crearNotificacion(user.uid, {
+          tipo: "inactividad",
+          obraId: obraActiva.id,
+          obraNombre: obraActiva.obraInfo?.nombre || "Obra",
+          mensaje: "Sin actividad hace más de 48hs en esta obra",
+        }).catch(() => {});
+      }
+    }
+
     unsubRef.current = escucharObra(obraActiva.id, data => {
       justLoadedRef.current = true;
       if (data?.etapas)       setEtapas(data.etapas);
@@ -264,9 +291,52 @@ export default function App() {
     const enriched = "estado" in changes
       ? { ...changes, ultimoCambio: { autor: "admin", timestamp: Date.now() } }
       : changes;
-    setEtapas(prev => prev.map(e => e.id !== etapaId ? e : {
-      ...e, items: e.items.map(i => i.id !== itemId ? i : { ...i, ...enriched })
-    }));
+
+    setEtapas(prev => {
+      const next = prev.map(e => e.id !== etapaId ? e : {
+        ...e, items: e.items.map(i => i.id !== itemId ? i : { ...i, ...enriched })
+      });
+
+      if (changes.estado === "completado" && user?.uid && obraActiva) {
+        const obraNombre = obraInfo.nombre || "Obra";
+        const etapa = next.find(e => e.id === etapaId);
+
+        // Notificar etapa completada
+        if (etapa && etapa.items.every(i => i.estado === "completado")) {
+          const key = `etapa_${etapaId}`;
+          if (!hitosRef.current.has(key)) {
+            hitosRef.current.add(key);
+            crearNotificacion(user.uid, {
+              tipo: "etapa_completada",
+              obraId: obraActiva.id,
+              obraNombre,
+              mensaje: `Etapa "${etapa.nombre}" completada al 100%`,
+            }).catch(() => {});
+          }
+        }
+
+        // Notificar hito de progreso (25/50/75/100%)
+        const allItems = next.flatMap(e => e.items || []);
+        const pctNew   = allItems.length ? Math.round(allItems.filter(i => i.estado === "completado").length / allItems.length * 100) : 0;
+        for (const hito of [25, 50, 75, 100]) {
+          if (pctNew >= hito) {
+            const key = `hito_${hito}`;
+            if (!hitosRef.current.has(key)) {
+              hitosRef.current.add(key);
+              crearNotificacion(user.uid, {
+                tipo: "hito_progreso",
+                obraId: obraActiva.id,
+                obraNombre,
+                mensaje: `La obra alcanzó el ${hito}% de avance`,
+              }).catch(() => {});
+            }
+          }
+        }
+      }
+
+      return next;
+    });
+
     if (modalItem?.item?.id === itemId) setModalItem(prev => ({ ...prev, item: { ...prev.item, ...enriched } }));
   }
 
@@ -403,6 +473,16 @@ export default function App() {
       });
       const compressed = await compressImage(dataUrl);
       updateItem(etapaId, itemId, { foto: compressed });
+      if (user?.uid && obraActiva) {
+        const etapa = etapas.find(e => e.id === etapaId);
+        const item  = etapa?.items.find(i => i.id === itemId);
+        crearNotificacion(user.uid, {
+          tipo: "foto_subida",
+          obraId: obraActiva.id,
+          obraNombre: obraInfo.nombre || "Obra",
+          mensaje: `Foto subida en "${item?.tarea || "tarea"}"`,
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error("Error subiendo foto:", err);
       setFotoError("No se pudo subir la foto. Intentá de nuevo.");
@@ -431,7 +511,10 @@ export default function App() {
       uid={user.uid}
       userNombre={userProfile.nombre}
       onSelectObra={o => { setObraActiva(o); setExpandidas({}); setVistaCliente(false); }}
-      onEliminar={async o => { await eliminarObra(o.id); }} />
+      onEliminar={async o => { await eliminarObra(o.id); }}
+      notifs={notifs}
+      noLeidas={noLeidas}
+    />
   );
 
   if (vistaCliente) return (
@@ -609,6 +692,13 @@ export default function App() {
               {saving ? "" : cloudStatus}
             </span>
           )}
+          <NotificacionesPanel
+            uid={user?.uid}
+            notifs={notifs}
+            noLeidas={noLeidas}
+            onSelectObra={o => { setObraActiva(o); setExpandidas({}); setVistaCliente(false); }}
+            obras={obras}
+          />
           <button onClick={() => setVistaCliente(true)}
             className="border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 rounded-full px-3 py-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-400 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors">
             Vista cliente
