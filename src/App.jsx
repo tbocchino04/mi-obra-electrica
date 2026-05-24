@@ -316,12 +316,16 @@ export default function App() {
       const pctNew = allItems.length
         ? Math.round(allItems.filter(i => i.estado === "completado").length / allItems.length * 100)
         : 0;
-      if (pctNew === 100 && !hitosRef.current.has("hito_100")) {
-        hitosRef.current.add("hito_100");
-        notificar(user.uid, {
-          obraId: obraActiva.id, obraNombre,
-          mensaje: `¡La obra "${obraNombre}" está completada al 100%!`,
-        });
+      for (const hito of [25, 50, 75, 100]) {
+        if (pctNew >= hito && !hitosRef.current.has(`hito_${hito}`)) {
+          hitosRef.current.add(`hito_${hito}`);
+          notificar(user.uid, {
+            obraId: obraActiva.id, obraNombre,
+            mensaje: hito === 100
+              ? `¡La obra "${obraNombre}" está completada al 100%!`
+              : `La obra "${obraNombre}" alcanzó el ${hito}% de avance`,
+          });
+        }
       }
     }
   }
