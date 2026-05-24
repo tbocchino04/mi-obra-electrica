@@ -24,6 +24,7 @@ import { compressImage, validateImage } from "./utils/imageUtils";
 import AvanzaLogo from "./components/AvanzaLogo";
 import { notificar } from "./services/notificaciones";
 import NotifBanner from "./components/NotifBanner";
+import { initFCM } from "./services/fcm";
 
 const clienteToken = new URLSearchParams(window.location.search).get("c");
 const socioToken   = new URLSearchParams(window.location.search).get("s");
@@ -189,6 +190,10 @@ export default function App() {
       if (u) {
         const perfil = await obtenerPerfil(u.uid);
         setUserProfile(perfil);
+        // Si el permiso ya está aceptado, re-registra el token sin necesitar gesto
+        if ("Notification" in window && Notification.permission === "granted") {
+          initFCM();
+        }
       } else {
         setUserProfile(null);
         setObras([]);
