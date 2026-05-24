@@ -22,9 +22,7 @@ import VistaSocio from "./components/VistaSocio";
 import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpers";
 import { compressImage, validateImage } from "./utils/imageUtils";
 import AvanzaLogo from "./components/AvanzaLogo";
-import { useNotificaciones } from "./hooks/useNotificaciones";
 import { notificar } from "./services/notificaciones";
-import NotificacionesPanel from "./components/NotificacionesPanel";
 import NotifBanner from "./components/NotifBanner";
 
 const clienteToken = new URLSearchParams(window.location.search).get("c");
@@ -184,8 +182,6 @@ export default function App() {
   const justLoadedRef  = useRef(false);
   const hitosRef       = useRef(new Set());
   const inactividadRef = useRef(false);
-
-  const { notifs, noLeidas } = useNotificaciones(user?.uid);
 
   useEffect(() => {
     return onAuth(async u => {
@@ -513,8 +509,6 @@ export default function App() {
       userNombre={userProfile.nombre}
       onSelectObra={o => { setObraActiva(o); setExpandidas({}); setVistaCliente(false); }}
       onEliminar={async o => { await eliminarObra(o.id); }}
-      notifs={notifs}
-      noLeidas={noLeidas}
     />
   );
 
@@ -694,13 +688,6 @@ export default function App() {
               {saving ? "" : cloudStatus}
             </span>
           )}
-          <NotificacionesPanel
-            uid={user?.uid}
-            notifs={notifs}
-            noLeidas={noLeidas}
-            onSelectObra={o => { setObraActiva(o); setExpandidas({}); setVistaCliente(false); }}
-            obras={obras}
-          />
           <button onClick={() => setVistaCliente(true)}
             className="border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 rounded-full px-3 py-1.5 text-[11px] font-semibold text-violet-700 dark:text-violet-400 cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors">
             Vista cliente

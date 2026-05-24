@@ -5,7 +5,6 @@ import { crearObra, guardarObra } from "../firebase";
 import { ETAPAS_DEFAULT, RUBROS, TIPOS_PROYECTO, TEMPLATES } from "../constants/data";
 import { SheetHandle, ModalConfirm } from "./ui";
 import { compressImage, validateImage } from "../utils/imageUtils";
-import NotificacionesPanel from "./NotificacionesPanel";
 
 const HOY = new Date().toISOString().slice(0, 10);
 const HACE7 = Date.now() - 7 * 24 * 3600 * 1000;
@@ -270,7 +269,7 @@ function StoryCard({ obra, stats, onSelect, onEliminar, onUploadCover, isUploadi
   );
 }
 
-export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSidebar, notifs = [], noLeidas = 0 }) {
+export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombre, onOpenSidebar }) {
   const [nombre,       setNombre]       = useState("");
   const [cliente,      setCliente]      = useState("");
   const [direccion,    setDireccion]    = useState("");
@@ -388,16 +387,6 @@ export default function ListaObras({ obras, onSelect, onEliminar, uid, userNombr
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 mt-1">
-            <div className="md:hidden">
-              <NotificacionesPanel
-                uid={uid}
-                notifs={notifs}
-                noLeidas={noLeidas}
-                obras={obras}
-                onSelectObra={onSelect}
-                variant="dark"
-              />
-            </div>
             <button onClick={() => setSearchOpen(v => !v)}
               className="border border-white/15 bg-white/5 hover:bg-white/10 text-white/60 rounded-xl px-3 py-2 text-[12px] font-semibold cursor-pointer transition-colors flex items-center gap-1.5">
               <Search size={12} />
