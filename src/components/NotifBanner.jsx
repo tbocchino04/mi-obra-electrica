@@ -15,15 +15,14 @@ export default function NotifBanner({ uid }) {
   useEffect(() => {
     if (!uid) return;
 
-    const perm = Notification.permission;
-    if (perm === "granted") { setEstado("listo"); return; }
+    const tieneAPI = "Notification" in window;
 
     if (!esPWA()) {
-      // En Safari browser → mostrar instrucciones de instalación
       const yaVisto = sessionStorage.getItem("bannerInstalacion");
       if (!yaVisto) setEstado("instalar");
-    } else {
-      // Es PWA pero no tiene permiso → mostrar botón de activar
+    } else if (tieneAPI) {
+      const perm = Notification.permission;
+      if (perm === "granted") { setEstado("listo"); return; }
       if (perm !== "denied") setEstado("activar");
     }
   }, [uid]);
