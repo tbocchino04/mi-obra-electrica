@@ -27,3 +27,19 @@ export async function marcarTodasLeidas(uid) {
   snap.docs.forEach(d => { if (!d.data().leida) batch.update(d.ref, { leida: true }); });
   await batch.commit();
 }
+
+// Notificación combinada: in-app (Firestore) + push nativa (FCM)
+export async function notificar(uid, params) {
+  await crearNotificacion(uid, params);
+
+  fetch("/api/notify", {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      uid,
+      title: params.obraNombre,
+      body:  params.mensaje,
+      obraId: params.obraId || "",
+    }),
+  }).catch(() => {});
+}

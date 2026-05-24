@@ -23,8 +23,9 @@ import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpe
 import { compressImage, validateImage } from "./utils/imageUtils";
 import AvanzaLogo from "./components/AvanzaLogo";
 import { useNotificaciones } from "./hooks/useNotificaciones";
-import { crearNotificacion } from "./services/notificaciones";
+import { notificar } from "./services/notificaciones";
 import NotificacionesPanel from "./components/NotificacionesPanel";
+import { initFCM } from "./services/fcm";
 
 const clienteToken = new URLSearchParams(window.location.search).get("c");
 const socioToken   = new URLSearchParams(window.location.search).get("s");
@@ -192,6 +193,7 @@ export default function App() {
       if (u) {
         const perfil = await obtenerPerfil(u.uid);
         setUserProfile(perfil);
+        initFCM();
       } else {
         setUserProfile(null);
         setObras([]);
@@ -229,7 +231,7 @@ export default function App() {
         .reduce((max, ts) => Math.max(max, ts), 0);
       if (lastTs > 0 && Date.now() - lastTs > 48 * 3600 * 1000) {
         inactividadRef.current = true;
-        crearNotificacion(user.uid, {
+        notificar(user.uid, {
           tipo: "inactividad",
           obraId: obraActiva.id,
           obraNombre: obraActiva.obraInfo?.nombre || "Obra",
@@ -306,7 +308,7 @@ export default function App() {
           const key = `etapa_${etapaId}`;
           if (!hitosRef.current.has(key)) {
             hitosRef.current.add(key);
-            crearNotificacion(user.uid, {
+            notificar(user.uid, {
               tipo: "etapa_completada",
               obraId: obraActiva.id,
               obraNombre,
@@ -323,7 +325,7 @@ export default function App() {
             const key = `hito_${hito}`;
             if (!hitosRef.current.has(key)) {
               hitosRef.current.add(key);
-              crearNotificacion(user.uid, {
+              notificar(user.uid, {
                 tipo: "hito_progreso",
                 obraId: obraActiva.id,
                 obraNombre,
@@ -476,7 +478,7 @@ export default function App() {
       if (user?.uid && obraActiva) {
         const etapa = etapas.find(e => e.id === etapaId);
         const item  = etapa?.items.find(i => i.id === itemId);
-        crearNotificacion(user.uid, {
+        notificar(user.uid, {
           tipo: "foto_subida",
           obraId: obraActiva.id,
           obraNombre: obraInfo.nombre || "Obra",
