@@ -227,11 +227,10 @@ export default function App() {
       if (lastTs > 0 && Date.now() - lastTs > 48 * 3600 * 1000) {
         inactividadRef.current = true;
         notificar(user.uid, {
-          tipo: "inactividad",
           obraId: obraActiva.id,
           obraNombre: obraActiva.obraInfo?.nombre || "Obra",
           mensaje: "Sin actividad hace más de 48hs en esta obra",
-        }).catch(() => {});
+        });
       }
     }
 
@@ -289,52 +288,47 @@ export default function App() {
       ? { ...changes, ultimoCambio: { autor: "admin", timestamp: Date.now() } }
       : changes;
 
-    setEtapas(prev => {
-      const next = prev.map(e => e.id !== etapaId ? e : {
-        ...e, items: e.items.map(i => i.id !== itemId ? i : { ...i, ...enriched })
-      });
+    const next = etapas.map(e => e.id !== etapaId ? e : {
+      ...e, items: e.items.map(i => i.id !== itemId ? i : { ...i, ...enriched })
+    });
 
-      if (changes.estado === "completado" && user?.uid && obraActiva) {
-        const obraNombre = obraInfo.nombre || "Obra";
-        const etapa = next.find(e => e.id === etapaId);
+    setEtapas(next);
 
-        // Notificar etapa completada
-        if (etapa && etapa.items.every(i => i.estado === "completado")) {
-          const key = `etapa_${etapaId}`;
-          if (!hitosRef.current.has(key)) {
-            hitosRef.current.add(key);
-            notificar(user.uid, {
-              tipo: "etapa_completada",
-              obraId: obraActiva.id,
-              obraNombre,
-              mensaje: `Etapa "${etapa.nombre}" completada al 100%`,
-            }).catch(() => {});
-          }
-        }
+    if (modalItem?.item?.id === itemId)
+      setModalItem(prev => ({ ...prev, item: { ...prev.item, ...enriched } }));
 
-        // Notificar hito de progreso (25/50/75/100%)
-        const allItems = next.flatMap(e => e.items || []);
-        const pctNew   = allItems.length ? Math.round(allItems.filter(i => i.estado === "completado").length / allItems.length * 100) : 0;
-        for (const hito of [25, 50, 75, 100]) {
-          if (pctNew >= hito) {
-            const key = `hito_${hito}`;
-            if (!hitosRef.current.has(key)) {
-              hitosRef.current.add(key);
-              notificar(user.uid, {
-                tipo: "hito_progreso",
-                obraId: obraActiva.id,
-                obraNombre,
-                mensaje: `La obra alcanzó el ${hito}% de avance`,
-              }).catch(() => {});
-            }
-          }
+    if (changes.estado === "completado" && user?.uid && obraActiva) {
+      const obraNombre = obraInfo.nombre || "Obra";
+      const etapa = next.find(e => e.id === etapaId);
+
+      if (etapa && etapa.items.every(i => i.estado === "completado")) {
+        const key = `etapa_${etapaId}`;
+        if (!hitosRef.current.has(key)) {
+          hitosRef.current.add(key);
+          notificar(user.uid, {
+            obraId: obraActiva.id, obraNombre,
+            mensaje: `Etapa "${etapa.nombre}" completada al 100%`,
+          });
         }
       }
 
-      return next;
-    });
-
-    if (modalItem?.item?.id === itemId) setModalItem(prev => ({ ...prev, item: { ...prev.item, ...enriched } }));
+      const allItems = next.flatMap(e => e.items || []);
+      const pctNew = allItems.length
+        ? Math.round(allItems.filter(i => i.estado === "completado").length / allItems.length * 100)
+        : 0;
+      for (const hito of [25, 50, 75, 100]) {
+        if (pctNew >= hito) {
+          const key = `hito_${hito}`;
+          if (!hitosRef.current.has(key)) {
+            hitosRef.current.add(key);
+            notificar(user.uid, {
+              obraId: obraActiva.id, obraNombre,
+              mensaje: `La obra alcanzó el ${hito}% de avance`,
+            });
+          }
+        }
+      }
+    }
   }
 
   function updateEtapa(etapaId, changes) {
@@ -474,11 +468,10 @@ export default function App() {
         const etapa = etapas.find(e => e.id === etapaId);
         const item  = etapa?.items.find(i => i.id === itemId);
         notificar(user.uid, {
-          tipo: "foto_subida",
           obraId: obraActiva.id,
           obraNombre: obraInfo.nombre || "Obra",
           mensaje: `Foto subida en "${item?.tarea || "tarea"}"`,
-        }).catch(() => {});
+        });
       }
     } catch (err) {
       console.error("Error subiendo foto:", err);
