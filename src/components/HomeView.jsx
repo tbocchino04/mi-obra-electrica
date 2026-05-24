@@ -4,6 +4,7 @@ import ListaObras from "./ListaObras";
 import VistaStock from "./VistaStock";
 import VistaFinanciero from "./VistaFinanciero";
 import NotificacionesPanel from "./NotificacionesPanel";
+import NotifBanner from "./NotifBanner";
 
 export default function HomeView({ obras, uid, userNombre, onSelectObra, onEliminar, notifs = [], noLeidas = 0 }) {
   const [activeView,  setActiveView]  = useState("obras");
@@ -11,6 +12,7 @@ export default function HomeView({ obras, uid, userNombre, onSelectObra, onElimi
 
   return (
     <>
+      <NotifBanner uid={uid} />
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
