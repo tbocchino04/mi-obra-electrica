@@ -300,6 +300,7 @@ export default function App() {
     if (changes.estado === "completado" && user?.uid && obraActiva) {
       const obraNombre = obraInfo.nombre || "Obra";
       const etapa = next.find(e => e.id === etapaId);
+      let enviada = false;
 
       if (etapa && etapa.items.every(i => i.estado === "completado")) {
         const key = `etapa_${etapaId}`;
@@ -309,6 +310,7 @@ export default function App() {
             obraId: obraActiva.id, obraNombre,
             mensaje: `Etapa "${etapa.nombre}" completada al 100%`,
           });
+          enviada = true;
         }
       }
 
@@ -319,12 +321,15 @@ export default function App() {
       for (const hito of [25, 50, 75, 100]) {
         if (pctNew >= hito && !hitosRef.current.has(`hito_${hito}`)) {
           hitosRef.current.add(`hito_${hito}`);
-          notificar(user.uid, {
-            obraId: obraActiva.id, obraNombre,
-            mensaje: hito === 100
-              ? `¡La obra "${obraNombre}" está completada al 100%!`
-              : `La obra "${obraNombre}" alcanzó el ${hito}% de avance`,
-          });
+          if (!enviada) {
+            notificar(user.uid, {
+              obraId: obraActiva.id, obraNombre,
+              mensaje: hito === 100
+                ? `¡La obra "${obraNombre}" está completada al 100%!`
+                : `La obra "${obraNombre}" alcanzó el ${hito}% de avance`,
+            });
+            enviada = true;
+          }
         }
       }
     }

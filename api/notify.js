@@ -16,8 +16,10 @@ export default async function handler(req, res) {
 
   const db = getFirestore();
   const userSnap = await db.doc(`users/${uid}`).get();
-  const tokens = userSnap.data()?.fcmTokens || [];
+  const rawTokens = userSnap.data()?.fcmTokens || [];
 
+  // Deduplicar: si hay tokens repetidos o acumulados, enviar solo al último
+  const tokens = [...new Set(rawTokens)];
   if (!tokens.length) return res.status(200).json({ sent: 0, reason: "sin tokens" });
 
   const messaging = getMessaging();
@@ -36,15 +38,10 @@ export default async function handler(req, res) {
     data: { obraId: obraId || "" },
   });
 
-  // Limpiar tokens inválidos
-  const invalidIdxs = result.responses
-    .map((r, i) => (!r.success ? i : -1))
-    .filter(i => i >= 0);
-
-  if (invalidIdxs.length) {
-    const valid = tokens.filter((_, i) => !invalidIdxs.includes(i));
-    await db.doc(`users/${uid}`).update({ fcmTokens: valid });
-  }
+  // Mantener solo los tokens válidos; si sobran varios, quedarse con el último
+  const validTokens = tokens.filter((_, i) => result.responses[i].success);
+  const tokenFinal = validTokens.length ? [validTokens[validTokens.length - 1]] : [];
+  await db.doc(`users/${uid}`).update({ fcmTokens: tokenFinal });
 
   res.status(200).json({ sent: result.successCount });
 }
