@@ -43,8 +43,9 @@ function StackedProgress({ rubros, height = 10 }) {
   );
 }
 
-export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = null, rubrosConfig = {} }) {
-  const [modalFirma, setModalFirma] = useState(null);
+export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = false, obraId = null, rubrosConfig = {}, hitos = [], adminUid = null }) {
+  const [modalFirma,      setModalFirma]      = useState(null);
+  const [modalHitoFirma,  setModalHitoFirma]  = useState(null); // hito object
   const { dark, toggle: toggleDark } = useTheme();
 
   const todosItems  = etapas.flatMap(e => e.items || []);
@@ -217,6 +218,34 @@ export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = f
           </div>
         )}
 
+        {/* Hitos Modo B — pendientes de firma */}
+        {esPublica && hitos.filter(h => h.estado === "alcanzado").map(h => (
+          <div key={h.id} style={{ marginTop:16, padding:"20px 24px", background:"#f5f3ff", border:"1px solid #c4b5fd", borderRadius:18 }}>
+            <div style={{ display:"flex", alignItems:"flex-start", gap:14 }}>
+              <div style={{ width:40, height:40, borderRadius:12, background:"#7c5cc9", display:"inline-flex", alignItems:"center", justifyContent:"center", color:"white", flexShrink:0 }}>
+                <PenLine size={18} />
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:800, color:"#3b0764", fontSize:14, lineHeight:1.3 }}>
+                  La obra alcanzó el {h.porcentaje}% de avance
+                  {h.descripcion ? ` — ${h.descripcion}` : ""}
+                </div>
+                <div style={{ fontSize:12, color:"#6d28d9", marginTop:4, fontWeight:600 }}>
+                  {h.monto ? `${h.moneda === "USD" ? "USD " : "$ "}${Number(h.monto).toLocaleString("es-AR")}` : ""}
+                  {h.fechaAlcanzado ? ` · Alcanzado ${fmtTimestamp(new Date(h.fechaAlcanzado).getTime())}` : ""}
+                </div>
+                <div style={{ fontSize:12, color:"#7c5cc9", marginTop:4 }}>
+                  Por favor firmá la conformidad para confirmar el avance.
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setModalHitoFirma(h)}
+              style={{ marginTop:14, width:"100%", padding:"12px 20px", borderRadius:12, border:0, background:"#7c5cc9", color:"white", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+              Firmar conformidad →
+            </button>
+          </div>
+        ))}
+
         {/* Actividad reciente */}
         {actividadReciente.length > 0 && (
           <div style={{ marginTop:16, padding:"20px 24px", background:"var(--card)", border:"1px solid var(--border)", borderRadius:18 }}>
@@ -327,6 +356,36 @@ export default function VistaCliente({ etapas, obraInfo, onVolver, esPublica = f
             setModalFirma(null);
           }}
           onClose={() => setModalFirma(null)} />
+      )}
+
+      {modalHitoFirma && (
+        <ModalFirma
+          etapa={{ id: modalHitoFirma.id, nombre: modalHitoFirma.descripcion || `Hito ${modalHitoFirma.porcentaje}%`, monto: modalHitoFirma.monto, moneda: modalHitoFirma.moneda }}
+          obraInfo={obraInfo}
+          onConfirm={async data => {
+            const updatedHitos = hitos.map(h =>
+              h.id === modalHitoFirma.id
+                ? { ...h, estado: "firmado", fechaFirma: data.fecha, nombreFirmante: data.firmante, firmaBase64: data.firmaBase64 }
+                : h
+            );
+            await guardarObra(obraId, { hitosCobroModoB: updatedHitos });
+            if (adminUid) {
+              try {
+                await fetch("/api/notify", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    uid: adminUid,
+                    obraId,
+                    obraNombre: obraInfo.nombre || "Obra",
+                    mensaje: `El cliente firmó el hito ${modalHitoFirma.porcentaje}%${modalHitoFirma.monto ? ` — ${modalHitoFirma.moneda === "USD" ? "USD " : "$ "}${Number(modalHitoFirma.monto).toLocaleString("es-AR")} listo para cobrar` : ""}`,
+                  }),
+                });
+              } catch {}
+            }
+            setModalHitoFirma(null);
+          }}
+          onClose={() => setModalHitoFirma(null)} />
       )}
 
       <style>{`

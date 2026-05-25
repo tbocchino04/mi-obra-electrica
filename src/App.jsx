@@ -172,6 +172,7 @@ export default function App() {
   const [rubroActivo,   setRubroActivo]   = useState(null);
   const [modalRubro,      setModalRubro]      = useState(false);
   const [rubrosConfig,    setRubrosConfig]    = useState({});
+  const [hitos,           setHitos]           = useState([]);
   const [modalFechasRubro, setModalFechasRubro] = useState(null);
   const [menuCompartir, setMenuCompartir] = useState(false);
   const [rubrosExpandidos, setRubrosExpandidos] = useState({});
@@ -215,12 +216,14 @@ export default function App() {
       setEtapas([]);
       setObraInfo({ nombre: "", cliente: "", direccion: "", clienteEmail: "", adminEmail: "" });
       setRubrosConfig({});
+      setHitos([]);
       return;
     }
     justLoadedRef.current = true;
-    if (obraActiva.etapas)       setEtapas(obraActiva.etapas);
-    if (obraActiva.obraInfo)     setObraInfo(obraActiva.obraInfo);
-    if (obraActiva.rubrosConfig) setRubrosConfig(obraActiva.rubrosConfig);
+    if (obraActiva.etapas)           setEtapas(obraActiva.etapas);
+    if (obraActiva.obraInfo)         setObraInfo(obraActiva.obraInfo);
+    if (obraActiva.rubrosConfig)     setRubrosConfig(obraActiva.rubrosConfig);
+    if (obraActiva.hitosCobroModoB)  setHitos(obraActiva.hitosCobroModoB);
 
     // Check inactividad al cargar
     if (user?.uid && obraActiva.etapas) {
@@ -259,9 +262,10 @@ export default function App() {
 
     unsubRef.current = escucharObra(obraActiva.id, data => {
       justLoadedRef.current = true;
-      if (data?.etapas)       setEtapas(data.etapas);
-      if (data?.obraInfo)     setObraInfo(data.obraInfo);
-      if (data?.rubrosConfig) setRubrosConfig(data.rubrosConfig);
+      if (data?.etapas)           setEtapas(data.etapas);
+      if (data?.obraInfo)         setObraInfo(data.obraInfo);
+      if (data?.rubrosConfig)     setRubrosConfig(data.rubrosConfig);
+      if (data?.hitosCobroModoB)  setHitos(data.hitosCobroModoB);
       setCloudStatus("Sincronizado");
     });
     return () => { if (unsubRef.current) unsubRef.current(); };
@@ -368,6 +372,23 @@ export default function App() {
           }
         }
       }
+
+      // Hitos Modo B: detectar cruce de umbrales
+      if (hitos.length > 0) {
+        let changed = false;
+        const updatedHitos = hitos.map(h => {
+          if (h.estado === "alcanzado" || h.estado === "firmado") return h;
+          if (pctNew >= h.porcentaje) {
+            changed = true;
+            return { ...h, estado: "alcanzado", fechaAlcanzado: new Date().toISOString() };
+          }
+          return h;
+        });
+        if (changed) {
+          setHitos(updatedHitos);
+          guardarObra(obraActiva.id, { hitosCobroModoB: updatedHitos });
+        }
+      }
     }
   }
 
@@ -425,6 +446,11 @@ export default function App() {
     const cfg = { ...rubrosConfig, [rubroId]: { ...(rubrosConfig[rubroId] || {}), ...cambios } };
     setRubrosConfig(cfg);
     await guardarObra(obraActiva.id, { rubrosConfig: cfg });
+  }
+
+  async function guardarHitos(nuevosHitos) {
+    setHitos(nuevosHitos);
+    await guardarObra(obraActiva.id, { hitosCobroModoB: nuevosHitos });
   }
 
   async function descargarReporte() {
@@ -546,7 +572,8 @@ export default function App() {
   );
 
   if (vistaCliente) return (
-    <VistaCliente etapas={etapas} obraInfo={obraInfo} onVolver={() => setVistaCliente(false)} rubrosConfig={rubrosConfig} />
+    <VistaCliente etapas={etapas} obraInfo={obraInfo} onVolver={() => setVistaCliente(false)}
+      rubrosConfig={rubrosConfig} hitos={hitos} adminUid={user?.uid} obraId={obraActiva?.id} />
   );
 
   function fmtComentario(c) {

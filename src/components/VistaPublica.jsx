@@ -21,5 +21,7 @@ export default function VistaPublica({ token }) {
     </div>
   );
 
-  return <VistaCliente etapas={obra.etapas || []} obraInfo={obra.obraInfo || {}} onVolver={null} esPublica obraId={obra.id} rubrosConfig={obra.rubrosConfig || {}} />;
+  return <VistaCliente etapas={obra.etapas || []} obraInfo={obra.obraInfo || {}} onVolver={null}
+    esPublica obraId={obra.id} rubrosConfig={obra.rubrosConfig || {}}
+    hitos={obra.hitosCobroModoB || []} adminUid={obra.uid} />;
 }
