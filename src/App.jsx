@@ -789,41 +789,37 @@ export default function App() {
         </div>
       </div>
 
-      {/* Hero */}
-      <div className="relative overflow-hidden" style={{ height: "200px" }}>
-        {obraInfo.fotoCover
-          ? <img src={obraInfo.fotoCover} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          : <div className="absolute inset-0 bg-gradient-to-br from-violet-700 to-violet-950" />
-        }
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
-        <div className="absolute inset-0 flex flex-col justify-end px-5 pb-5">
-          {obraInfo.tipo && (
-            <div className="inline-flex self-start mb-2 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold tracking-widest uppercase">
-              {TIPOS_PROYECTO.find(t => t.id === obraInfo.tipo)?.label || obraInfo.tipo}
-            </div>
-          )}
-          <button onClick={() => setEditInfo(true)} className="text-left bg-transparent border-0 p-0 cursor-pointer">
-            <div className="text-white font-bold text-[22px] tracking-tight leading-tight">
-              {obraInfo.nombre || "Sin nombre"}
-            </div>
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
-              {obraInfo.cliente && (
-                <div className="flex items-center gap-1 text-white/70 text-[12px]">
-                  <User size={10} /> {obraInfo.cliente}
-                </div>
-              )}
-              {obraInfo.direccion && (
-                <div className="flex items-center gap-1 text-white/70 text-[12px]">
-                  <MapPin size={10} /> {obraInfo.direccion}
-                </div>
-              )}
-            </div>
-          </button>
-        </div>
-        <div className="absolute top-4 right-5 text-right">
-          <div className="text-[42px] font-bold text-white leading-none tracking-[-0.04em]"
-            style={{ textShadow: "0 2px 16px rgba(0,0,0,0.5)" }}>{pct}%</div>
-          <div className="text-[11px] text-white/60 font-semibold mt-0.5">{completados}/{totalItems} ítems</div>
+      {/* Header compacto */}
+      <div className="bg-white dark:bg-ink-900 border-b border-ink-200 dark:border-ink-700 px-5 py-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            {obraInfo.tipo && (
+              <div className="inline-flex mb-1.5 px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-[10px] font-bold tracking-widest uppercase">
+                {TIPOS_PROYECTO.find(t => t.id === obraInfo.tipo)?.label || obraInfo.tipo}
+              </div>
+            )}
+            <button onClick={() => setEditInfo(true)} className="text-left bg-transparent border-0 p-0 cursor-pointer w-full">
+              <div className="text-ink dark:text-ink-50 font-bold text-[20px] tracking-tight leading-tight">
+                {obraInfo.nombre || "Sin nombre"}
+              </div>
+              <div className="flex items-center gap-3 mt-1 flex-wrap">
+                {obraInfo.cliente && (
+                  <div className="flex items-center gap-1 text-ink-400 dark:text-ink-500 text-[12px]">
+                    <User size={10} /> {obraInfo.cliente}
+                  </div>
+                )}
+                {obraInfo.direccion && (
+                  <div className="flex items-center gap-1 text-ink-400 dark:text-ink-500 text-[12px]">
+                    <MapPin size={10} /> {obraInfo.direccion}
+                  </div>
+                )}
+              </div>
+            </button>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className={`text-[36px] font-bold leading-none tracking-[-0.04em] ${progressColor(pct)}`}>{pct}%</div>
+            <div className="text-[11px] text-ink-400 dark:text-ink-500 font-semibold mt-0.5">{completados}/{totalItems} ítems</div>
+          </div>
         </div>
       </div>
 
