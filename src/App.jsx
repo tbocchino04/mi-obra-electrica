@@ -23,7 +23,6 @@ import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpe
 import { compressImage, validateImage } from "./utils/imageUtils";
 import AvanzaLogo from "./components/AvanzaLogo";
 import { notificar } from "./services/notificaciones";
-import NotifBanner from "./components/NotifBanner";
 import { initFCM } from "./services/fcm";
 
 const clienteToken = new URLSearchParams(window.location.search).get("c");
@@ -664,7 +663,6 @@ export default function App() {
 
   return (
     <>
-    <NotifBanner uid={user?.uid} />
     {saveError && (
       <div className="fixed top-0 left-0 right-0 z-[9999] bg-red-500 text-white text-sm font-semibold flex items-center justify-center gap-3 py-3 px-4 shadow-lg">
         <AlertCircle size={14} className="flex-shrink-0" />
