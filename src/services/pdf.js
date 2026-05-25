@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { calcAuditoria } from "../utils/helpers";
 
 async function loadLogo() {
   try {
@@ -116,7 +117,7 @@ export async function generarComprobante({
   return doc;
 }
 
-export async function generarReporteObra({ etapas, obraInfo, rubros = [] }) {
+export async function generarReporteObra({ etapas, obraInfo, rubros = [], rubrosConfig = {}, rubrosActivos = [] }) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210;
   const M = 15;
@@ -250,6 +251,114 @@ export async function generarReporteObra({ etapas, obraInfo, rubros = [] }) {
       }
     }
     y += 6;
+  }
+
+  // ── Tabla de tiempos ───────────────────────────────────────────
+  if (rubrosActivos.length > 0) {
+    if (y + 60 > 278) { doc.addPage(); y = 20; }
+    divider(doc, y, M, W); y += 10;
+    label(doc, "TABLA DE TIEMPOS POR RUBRO", M, y); y += 8;
+
+    const estadoColor = {
+      "Adelantada": [5, 150, 105],
+      "En término": [37, 99, 235],
+      "En riesgo":  [217, 119, 6],
+      "Atrasada":   [220, 38, 38],
+    };
+
+    // Cabecera
+    const cRubro = M, cDurEst = M + 60, cDurReal = M + 95, cDesvio = M + 132, cEstado = M + 160;
+    bold(doc, 7, [140, 140, 150]);
+    doc.text("RUBRO",            cRubro,   y);
+    doc.text("DUR. EST.",        cDurEst,  y);
+    doc.text("DUR. REAL",        cDurReal, y);
+    doc.text("DESVÍO",           cDesvio,  y);
+    doc.text("ESTADO",           cEstado,  y);
+    y += 2; divider(doc, y, M, W); y += 5;
+
+    let totalDurEst = 0, totalDurReal = 0, allHaveDurEst = true, allComplete = true;
+
+    for (const rid of rubrosActivos) {
+      if (y > 275) { doc.addPage(); y = 20; }
+      const rc  = rubros.find(r => r.id === rid);
+      const aud = calcAuditoria(rubrosConfig[rid] || {});
+      const its = etapas.filter(e => (e.rubro || obraInfo.rubro) === rid).flatMap(e => e.items || []);
+      const rp  = its.length ? Math.round(its.filter(i => i.estado === "completado").length / its.length * 100) : 0;
+      if (rp < 100) allComplete = false;
+
+      if (aud.durEst !== null) totalDurEst += aud.durEst; else allHaveDurEst = false;
+      if (aud.durReal !== null && rubrosConfig[rid]?.fechaRealFin) totalDurReal += aud.durReal;
+
+      const rubroLines = doc.splitTextToSize(rc?.label || rid, 55);
+      normal(doc, 8, [15, 20, 35]);
+      doc.text(rubroLines, cRubro, y);
+
+      normal(doc, 8, [80, 80, 90]);
+      doc.text(aud.durEst !== null ? `${aud.durEst}d` : "-", cDurEst, y);
+      doc.text(aud.durReal !== null ? `${aud.durReal}d` : "-", cDurReal, y);
+
+      if (aud.desvio !== null) {
+        const devRgb = aud.desvio > 0 ? [220, 38, 38] : [5, 150, 105];
+        bold(doc, 8, devRgb);
+        doc.text(`${aud.desvio > 0 ? "+" : ""}${aud.desvio}d`, cDesvio, y);
+      } else {
+        normal(doc, 8, [140, 140, 150]);
+        doc.text("-", cDesvio, y);
+      }
+
+      if (aud.estado) {
+        const eRgb = estadoColor[aud.estado] || [100, 100, 110];
+        bold(doc, 7.5, eRgb);
+        doc.text(aud.estado, cEstado, y);
+      }
+      y += rubroLines.length > 1 ? rubroLines.length * 4.5 : 6;
+    }
+
+    // ── Resumen ejecutivo ─────────────────────────────────────────
+    if (y + 55 > 278) { doc.addPage(); y = 20; }
+    y += 4; divider(doc, y, M, W); y += 10;
+    label(doc, "RESUMEN EJECUTIVO", M, y); y += 8;
+
+    // Duración total estimada
+    bold(doc, 9, [15, 20, 35]);
+    doc.text("Duración total estimada:", M, y);
+    normal(doc, 9, [80, 80, 90]);
+    doc.text(allHaveDurEst && totalDurEst > 0 ? `${totalDurEst} días` : "Sin datos", M + 65, y);
+    y += 6;
+
+    // Duración total real (suma de rubros completos)
+    bold(doc, 9, [15, 20, 35]);
+    doc.text("Duración real acumulada:", M, y);
+    normal(doc, 9, [80, 80, 90]);
+    doc.text(totalDurReal > 0 ? `${totalDurReal} días` : "En curso", M + 65, y);
+    y += 6;
+
+    // Proyección de fin de obra
+    const fechasFin = rubrosActivos
+      .map(rid => rubrosConfig[rid]?.fechaEstimadaFin)
+      .filter(Boolean).sort();
+    const proyeccionFin = fechasFin.at(-1);
+    if (proyeccionFin) {
+      const [yr, mo, da] = proyeccionFin.split("-");
+      const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+      bold(doc, 9, [15, 20, 35]);
+      doc.text("Proyección de fin de obra:", M, y);
+      normal(doc, 9, allComplete ? [5, 150, 105] : [37, 99, 235]);
+      doc.text(`${parseInt(da)} ${meses[parseInt(mo) - 1]} ${yr}`, M + 65, y);
+      y += 6;
+    }
+
+    // Desvío global si hay datos
+    if (totalDurEst > 0 && totalDurReal > 0 && allComplete) {
+      const devGlobal = totalDurReal - totalDurEst;
+      bold(doc, 9, [15, 20, 35]);
+      doc.text("Desvío global:", M, y);
+      const devRgb = devGlobal > 0 ? [220, 38, 38] : devGlobal < 0 ? [5, 150, 105] : [80, 80, 90];
+      bold(doc, 9, devRgb);
+      doc.text(`${devGlobal > 0 ? "+" : ""}${devGlobal} días`, M + 65, y);
+      y += 6;
+    }
+    y += 4;
   }
 
   // ── Footer ─────────────────────────────────────────────────────

@@ -44,6 +44,36 @@ export function calcFinanciero(etapas) {
   };
 }
 
+export function calcAuditoria(cfg = {}) {
+  const { fechaEstimadaInicio, fechaEstimadaFin, fechaRealInicio, fechaRealFin } = cfg;
+  const ms2d  = ms => Math.round(ms / 86400000);
+  const today = new Date().toISOString().slice(0, 10);
+
+  const durEst = fechaEstimadaInicio && fechaEstimadaFin
+    ? ms2d(new Date(fechaEstimadaFin) - new Date(fechaEstimadaInicio))
+    : null;
+
+  const durReal = fechaRealInicio && fechaRealFin
+    ? ms2d(new Date(fechaRealFin) - new Date(fechaRealInicio))
+    : fechaRealInicio
+    ? ms2d(Date.now() - new Date(fechaRealInicio))
+    : null;
+
+  const desvio = (durEst !== null && fechaRealFin && durReal !== null)
+    ? durReal - durEst
+    : null;
+
+  let estado = null;
+  if (desvio !== null) {
+    estado = desvio < 0 ? "Adelantada" : desvio <= 2 ? "En término" : "Atrasada";
+  } else if (fechaEstimadaFin) {
+    const dias = Math.ceil((new Date(fechaEstimadaFin) - new Date(today)) / 86400000);
+    estado = dias < 0 ? "Atrasada" : dias <= 3 ? "En riesgo" : "En término";
+  }
+
+  return { durEst, durReal, desvio, estado };
+}
+
 export function fmtNum(n, moneda) {
   const prefix = moneda === "USD" ? "USD " : "$ ";
   return `${prefix}${Number(n).toLocaleString("es-AR")}`;

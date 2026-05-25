@@ -19,7 +19,7 @@ import HomeView from "./components/HomeView";
 import VistaCliente from "./components/VistaCliente";
 import VistaPublica from "./components/VistaPublica";
 import VistaSocio from "./components/VistaSocio";
-import { pctEtapa, fmtMonto, progressColor, progressStroke } from "./utils/helpers";
+import { pctEtapa, fmtMonto, progressColor, progressStroke, calcAuditoria } from "./utils/helpers";
 import { compressImage, validateImage } from "./utils/imageUtils";
 import AvanzaLogo from "./components/AvanzaLogo";
 import { notificar } from "./services/notificaciones";
@@ -238,6 +238,25 @@ export default function App() {
       }
     }
 
+    // Alertas 3 días antes del vencimiento de cada rubro
+    if (user?.uid && obraActiva.rubrosConfig) {
+      const hoy = new Date().toISOString().slice(0, 10);
+      for (const [rid, rCfg] of Object.entries(obraActiva.rubrosConfig)) {
+        if (!rCfg.fechaEstimadaFin || rCfg.fechaRealFin) continue;
+        const dias = Math.ceil((new Date(rCfg.fechaEstimadaFin) - new Date(hoy)) / 86400000);
+        if (dias >= 0 && dias <= 3) {
+          const rc = RUBROS.find(r => r.id === rid);
+          notificar(user.uid, {
+            obraId: obraActiva.id,
+            obraNombre: obraActiva.obraInfo?.nombre || "Obra",
+            mensaje: dias === 0
+              ? `El rubro "${rc?.label || rid}" vence hoy`
+              : `El rubro "${rc?.label || rid}" vence en ${dias} día${dias === 1 ? "" : "s"}`,
+          });
+        }
+      }
+    }
+
     unsubRef.current = escucharObra(obraActiva.id, data => {
       justLoadedRef.current = true;
       if (data?.etapas)       setEtapas(data.etapas);
@@ -315,6 +334,19 @@ export default function App() {
             mensaje: `Etapa "${etapa.nombre}" completada al 100%`,
           });
           enviada = true;
+        }
+      }
+
+      // Auto-set fechaRealFin cuando el rubro completa al 100%
+      const changedEtapa = next.find(e => e.id === etapaId);
+      const rubroIdChanged = getRubroDeEtapa(changedEtapa || {});
+      if (rubroIdChanged) {
+        const rubroItems = next
+          .filter(e => getRubroDeEtapa(e) === rubroIdChanged)
+          .flatMap(e => e.items || []);
+        if (rubroItems.length > 0 && rubroItems.every(i => i.estado === "completado")
+            && !rubrosConfig[rubroIdChanged]?.fechaRealFin) {
+          guardarFechasRubro(rubroIdChanged, { fechaRealFin: new Date().toISOString().slice(0, 10) });
         }
       }
 
@@ -399,7 +431,7 @@ export default function App() {
     setReportLoading(true);
     try {
       const { generarReporteObra } = await import("./services/pdf");
-      const pdf = await generarReporteObra({ etapas, obraInfo, rubros: RUBROS });
+      const pdf = await generarReporteObra({ etapas, obraInfo, rubros: RUBROS, rubrosConfig, rubrosActivos });
       const nombre = `Reporte_${obraInfo.nombre || "Obra"}`.replace(/\s+/g, "_");
       pdf.save(`${nombre}.pdf`);
     } catch (err) {
@@ -951,6 +983,13 @@ export default function App() {
                       const pColor = progressStroke(rp);
                       const inProgress = rubroEtapas.filter(e => { const ep = pctEtapa(e); return ep > 0 && ep < 100; });
                       const activeEtapa = inProgress[0] || rubroEtapas[rubroEtapas.length - 1];
+                      const auditoria = calcAuditoria(cfg);
+                      const estadoBadgeCls = {
+                        "Adelantada": "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400",
+                        "En término": "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400",
+                        "En riesgo":  "bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400",
+                        "Atrasada":   "bg-red-50 dark:bg-red-950/30 text-red-500",
+                      };
                       return (
                         <div key={rid} className="px-4 py-4">
                           <div className="flex items-start gap-3 mb-3">
@@ -967,13 +1006,22 @@ export default function App() {
                                 {firmaCount > 0 && (
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">{firmaCount} firma{firmaCount > 1 ? "s" : ""}</span>
                                 )}
+                                {auditoria.estado && (
+                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${estadoBadgeCls[auditoria.estado] || ""}`}>{auditoria.estado}</span>
+                                )}
                               </div>
                               {fin && (
                                 <div className={`text-[11px] mt-0.5 ${vencido ? "text-red-500 font-semibold" : "text-ink-400 dark:text-ink-500"}`}>
                                   Fin est. {fin}{vencido ? " · Atrasado" : ""}
                                 </div>
                               )}
-                              {activeEtapa && (
+                              {cfg.fechaRealInicio && (
+                                <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5">
+                                  Inició: {fmtFecha(cfg.fechaRealInicio)}
+                                  {auditoria.durEst !== null && ` · Est. ${auditoria.durEst}d`}
+                                </div>
+                              )}
+                              {activeEtapa && !cfg.fechaRealInicio && (
                                 <div className="text-[11px] text-ink-400 dark:text-ink-500 mt-0.5 truncate">{activeEtapa.nombre}</div>
                               )}
                             </div>
@@ -997,6 +1045,13 @@ export default function App() {
                               </button>
                             </div>
                           </div>
+                          {rp === 0 && !cfg.fechaRealInicio && (
+                            <button
+                              onClick={() => guardarFechasRubro(rid, { fechaRealInicio: new Date().toISOString().slice(0, 10) })}
+                              className="mt-2.5 w-full py-2 bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-400 text-[12px] font-semibold rounded-xl cursor-pointer hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors">
+                              Iniciar etapa
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -1534,16 +1589,70 @@ export default function App() {
               </button>
             </div>
             {[
-              ["fechaEstimadaFin", "Fecha estimada de fin"],
-            ].map(([campo, label]) => (
-              <div key={campo} className="mb-4">
-                <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-1.5">{label}</div>
+              ["fechaEstimadaInicio", "Fecha estimada de inicio"],
+              ["fechaEstimadaFin",    "Fecha estimada de fin"],
+            ].map(([campo, lbl]) => (
+              <div key={campo} className="mb-3">
+                <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-1.5">{lbl}</div>
                 <input type="date"
                   value={rubrosConfig[modalFechasRubro]?.[campo] || ""}
                   onChange={e => guardarFechasRubro(modalFechasRubro, { [campo]: e.target.value || null })}
                   className="w-full px-3 py-2.5 rounded-xl border border-ink-200 dark:border-ink-700 text-sm bg-ink-50 dark:bg-ink-800 text-ink dark:text-ink-50 outline-none focus:border-violet-500 transition-colors" />
               </div>
             ))}
+            {/* Fechas reales auto-registradas */}
+            {(rubrosConfig[modalFechasRubro]?.fechaRealInicio || rubrosConfig[modalFechasRubro]?.fechaRealFin) && (
+              <div className="mt-1 pt-3 border-t border-ink-100 dark:border-ink-800">
+                <div className="text-[10px] font-bold tracking-widest uppercase text-ink-400 dark:text-ink-500 mb-2">Fechas reales</div>
+                {rubrosConfig[modalFechasRubro]?.fechaRealInicio && (
+                  <div className="flex justify-between text-[12px] py-1">
+                    <span className="text-ink-400 dark:text-ink-500">Inicio real</span>
+                    <span className="font-semibold text-ink dark:text-ink-50">{fmtFecha(rubrosConfig[modalFechasRubro].fechaRealInicio)}</span>
+                  </div>
+                )}
+                {rubrosConfig[modalFechasRubro]?.fechaRealFin && (
+                  <div className="flex justify-between text-[12px] py-1">
+                    <span className="text-ink-400 dark:text-ink-500">Fin real</span>
+                    <span className="font-semibold text-ink dark:text-ink-50">{fmtFecha(rubrosConfig[modalFechasRubro].fechaRealFin)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Resumen auditoría */}
+            {(() => {
+              const aud = calcAuditoria(rubrosConfig[modalFechasRubro] || {});
+              if (!aud.estado) return null;
+              const estadoColor = {
+                "Adelantada": "text-emerald-600 dark:text-emerald-400",
+                "En término": "text-blue-600 dark:text-blue-400",
+                "En riesgo":  "text-amber-600 dark:text-amber-400",
+                "Atrasada":   "text-red-500",
+              };
+              return (
+                <div className="mt-3 p-3 rounded-xl bg-ink-50 dark:bg-ink-800 space-y-1">
+                  <div className="flex justify-between text-[12px]">
+                    <span className="text-ink-400 dark:text-ink-500">Dur. estimada</span>
+                    <span className="font-semibold text-ink dark:text-ink-100">{aud.durEst !== null ? `${aud.durEst} días` : "—"}</span>
+                  </div>
+                  <div className="flex justify-between text-[12px]">
+                    <span className="text-ink-400 dark:text-ink-500">Dur. real</span>
+                    <span className="font-semibold text-ink dark:text-ink-100">{aud.durReal !== null ? `${aud.durReal} días` : "—"}</span>
+                  </div>
+                  {aud.desvio !== null && (
+                    <div className="flex justify-between text-[12px]">
+                      <span className="text-ink-400 dark:text-ink-500">Desvío</span>
+                      <span className={`font-bold ${aud.desvio > 0 ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+                        {aud.desvio > 0 ? "+" : ""}{aud.desvio} días
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-[12px]">
+                    <span className="text-ink-400 dark:text-ink-500">Estado</span>
+                    <span className={`font-bold ${estadoColor[aud.estado] || ""}`}>{aud.estado}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
